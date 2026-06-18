@@ -48,30 +48,11 @@
 
 <br/>
 
-## Why CC-HUD? · 为什么做 CC-HUD？
-
-<table>
-<tr>
-  <th width="50%">English</th>
-  <th width="50%">中文</th>
-</tr>
-<tr>
-<td>
+## Why CC-HUD?
 
 **Problem.** Claude Code's native installer bundles [Bun](https://bun.sh), which has a known memory allocator bug on **Windows** ([oven-sh/bun#25082](https://github.com/oven-sh/bun/issues/25082)). Statusline plugins like [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud) run **on every tick**, amplifying memory pressure and making `pas panic` crashes far more likely.
 
 **Solution.** CC-HUD is a **crash-free alternative** — pure Node.js, zero deps, stateless per call, ~60ms render, 2s hard timeout. Designed to keep your status bar running without taking Claude Code down.
-
-</td>
-<td>
-
-**问题。** Claude Code 原生安装器内嵌 [Bun](https://bun.sh)，在 **Windows** 上存在已知内存分配器 bug（[oven-sh/bun#25082](https://github.com/oven-sh/bun/issues/25082)）。[jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud) 等状态栏插件**每 tick 都执行**，加剧内存压力，频繁触发 `pas panic` 崩溃。
-
-**方案。** CC-HUD 是**不会崩溃的替代** — 纯 Node.js、零依赖、无状态调用、~60ms 渲染、2s 硬超时。让状态栏稳定运行，不拖垮 Claude Code。
-
-</td>
-</tr>
-</table>
 
 > [!TIP]
 > **Windows users:** Use `npm i -g @anthropic-ai/claude-code` instead of the native installer to avoid Bun crashes entirely.
