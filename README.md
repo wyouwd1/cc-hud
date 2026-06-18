@@ -13,7 +13,10 @@
 -->
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png" alt="cc-hud preview" width="900" />
+  <picture>
+    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg" type="image/svg+xml" />
+    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png" alt="cc-hud preview — model, context bar, agents, rate limits, balance" width="900" />
+  </picture>
 </p>
 
 <h1 align="center">CC-HUD</h1>
