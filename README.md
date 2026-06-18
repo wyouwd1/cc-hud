@@ -7,7 +7,7 @@
   Step 1: /plugin marketplace add WaterTian/cc-hud
   Step 2: /plugin install cc-hud@cc-hud
   Step 3: /reload-plugins
-  Step 4: /cc-hud:setup  (skip if statusLine is already configured — see README)
+  Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need step 1 + step 3)
 
   Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm token-plan
 -->
@@ -45,36 +45,29 @@
 
 <br/>
 
-## Why CC-HUD?
+## Why CC-HUD? · 为什么做 CC-HUD？
 
 <table>
-<tr><td>
+<tr>
+  <th width="50%">English</th>
+  <th width="50%">中文</th>
+</tr>
+<tr>
+<td>
 
-### The Problem
+**Problem.** Claude Code's native installer bundles [Bun](https://bun.sh), which has a known memory allocator bug on **Windows** ([oven-sh/bun#25082](https://github.com/oven-sh/bun/issues/25082)). Statusline plugins like [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud) run **on every tick**, amplifying memory pressure and making `pas panic` crashes far more likely.
 
-Claude Code's native installer bundles [Bun](https://bun.sh), which has a known memory allocator bug on **Windows** ([oven-sh/bun#25082](https://github.com/oven-sh/bun/issues/25082)), causing frequent `pas panic` crashes. Statusline plugins like [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud) run **on every tick**, amplifying memory pressure and making crashes far more likely.
+**Solution.** CC-HUD is a **crash-free alternative** — pure Node.js, zero deps, stateless per call, ~60ms render, 2s hard timeout. Designed to keep your status bar running without taking Claude Code down.
 
-### The Solution
+</td>
+<td>
 
-CC-HUD is a **crash-free alternative** — pure Node.js, zero dependencies, stateless per-call, ~60ms execution, 2s hard timeout. Designed to keep your status bar running without taking Claude Code down.
+**问题。** Claude Code 原生安装器内嵌 [Bun](https://bun.sh)，在 **Windows** 上存在已知内存分配器 bug（[oven-sh/bun#25082](https://github.com/oven-sh/bun/issues/25082)）。[jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud) 等状态栏插件**每 tick 都执行**，加剧内存压力，频繁触发 `pas panic` 崩溃。
 
-</td></tr>
-</table>
+**方案。** CC-HUD 是**不会崩溃的替代** — 纯 Node.js、零依赖、无状态调用、~60ms 渲染、2s 硬超时。让状态栏稳定运行，不拖垮 Claude Code。
 
-## 为什么做 CC-HUD？
-
-<table>
-<tr><td>
-
-### 问题
-
-Claude Code 原生安装器内嵌 [Bun](https://bun.sh)，在 **Windows** 上存在已知内存分配器 bug（[oven-sh/bun#25082](https://github.com/oven-sh/bun/issues/25082)），频繁触发 `pas panic` 崩溃。而 [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud) 等状态栏插件**每次 tick 都会执行**，加剧内存压力，使崩溃更加频繁。
-
-### 解决方案
-
-CC-HUD 是**不会崩溃的替代方案** — 纯 Node.js、零依赖、无状态调用、~60ms 执行、2s 硬超时。让状态栏稳定运行，不拖垮 Claude Code。
-
-</td></tr>
+</td>
+</tr>
 </table>
 
 > [!TIP]
@@ -106,25 +99,25 @@ Inside Claude Code:
 /plugin marketplace add WaterTian/cc-hud
 /plugin install cc-hud@cc-hud
 /reload-plugins
-/cc-hud:setup        # only if no statusLine is configured yet
+/cc-hud:setup        # idempotent; safe to re-run
 ```
 
 **Done** — no restart needed; `/reload-plugins` hot-loads the HUD.
 
 > [!NOTE]
-> `/cc-hud:setup` writes the `statusLine` entry into `~/.claude/settings.json`. **Skip it** if you already have a `statusLine` configured (e.g. via `cc-bot`, an older install, or hand-edited settings).
+> `/cc-hud:setup` installs a tiny launcher at `~/.claude/bin/cc-hud-launcher.cjs` and points `statusLine.command` at it. It is **idempotent** — re-running migrates old version-pinned paths and skips when already current. If `statusLine` is managed by [`cc-bot`](https://github.com/WaterTian/cc-bot)'s shim, setup detects this and leaves it alone (the shim already wraps cc-hud transparently).
 
 ### Upgrade
 
 ```
 /plugin marketplace update cc-hud
-/cc-hud:setup
 /reload-plugins
 ```
 
-> [!IMPORTANT]
-> Marketplace updates install new versions but do **not** rewrite the `statusLine` config.
-> Re-run `/cc-hud:setup` after each upgrade to point the path to the latest version.
+> [!NOTE]
+> Since **v0.5.0**, `/cc-hud:setup` installs a small **launcher** at `~/.claude/bin/cc-hud-launcher.cjs` and points `statusLine.command` at it. The launcher resolves the currently installed cc-hud version on each tick, so plugin upgrades no longer require re-running `/cc-hud:setup`.
+>
+> Upgrading from **≤0.4.x**? Re-run `/cc-hud:setup` **once** — it auto-detects the old version-pinned path and migrates it to the launcher.
 
 <details>
 <summary><b>Via npm (manual)</b></summary>
@@ -176,76 +169,95 @@ Add to `~/.claude/settings.json`:
 ## How It Works
 
 ```
-Claude Code ─── stdin JSON ──→ cc-hud ──→ stdout ──→ status bar
-             │  (model, context, rate_limits.resets_at)
-             ↘ transcript JSONL (tail 64KB → active agents)
+Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← stable path (v0.5+)
+                              │ resolves the currently installed cc-hud
+                              ▼
+                             cc-hud dist/index.js  ──stdout──→ status bar
+                              ↘ transcript JSONL (tail 64KB → active agents)
 ```
 
 <table>
 <tr>
-  <td align="center"><b>Stateless</b><br/><sub>Fresh process per call<br/>zero memory leaks</sub></td>
-  <td align="center"><b>Fast</b><br/><sub>~60ms execution<br/>within 300ms debounce</sub></td>
-  <td align="center"><b>Safe</b><br/><sub>2s hard timeout<br/>all IO try-catch</sub></td>
+  <td align="center" width="25%"><b>Stateless</b><br/><sub>Fresh process per tick<br/>zero memory leaks</sub></td>
+  <td align="center" width="25%"><b>Fast</b><br/><sub>~60ms render<br/>within 300ms debounce</sub></td>
+  <td align="center" width="25%"><b>Safe</b><br/><sub>2s hard timeout<br/>all IO try-catch</sub></td>
+  <td align="center" width="25%"><b>Upgrade-safe</b><br/><sub>Stable launcher (v0.5+)<br/>no re-setup on upgrade</sub></td>
 </tr>
 </table>
 
 <br/>
 
-## Balance Display (DeepSeek)
+## Auto-detected Backends
 
-When using **DeepSeek** as the backend (`ANTHROPIC_BASE_URL` set to `https://api.deepseek.com/anthropic`), cc-hud **automatically** shows your account balance — **zero configuration required**.
+cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`glm-5.2[1m]` → `GLM 5.2 (1M)`, `MiniMax-M3` → `MiniMax M3`, etc.).
+
+<table>
+<tr>
+  <th>Backend</th>
+  <th><code>ANTHROPIC_BASE_URL</code></th>
+  <th>Extra segment</th>
+</tr>
+<tr>
+  <td><b>DeepSeek</b></td>
+  <td><code>https://api.deepseek.com/anthropic</code></td>
+  <td>account balance — <code>¥13.44</code></td>
+</tr>
+<tr>
+  <td><b>MiniMax</b></td>
+  <td><code>https://api.minimaxi.com/anthropic</code></td>
+  <td>Token Plan — <code>5h:17% (1.1h) │ 7d:2% (6.4d)</code></td>
+</tr>
+<tr>
+  <td><b>GLM</b></td>
+  <td><code>https://open.bigmodel.cn/api/anthropic</code><br/><code>https://api.z.ai/api/anthropic</code></td>
+  <td>account balance — <code>¥88.50</code></td>
+</tr>
+</table>
+
+Example output:
 
 ```
 [DeepSeek V4 Pro] ██░░░░░░░░ 20% │ ¥13.44
+[MiniMax M3]      █▎░░░░░░░░ 13% │ 5h:17% (1.1h) │ 7d:2% (6.4d)
+[GLM 5.2]         ████▏░░░░░ 41% (1M) │ ¥88.50
 ```
 
-Balance is cached locally for 5 minutes. On cache miss, cc-hud fetches the latest balance from DeepSeek's API. Works with `dscode`, `deepseekcode`, or any launcher that sets `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`.
+Works with `dscode` / `mmcode` / `glmcode` / `ZCode` or any launcher that exports `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`.
 
-**For other backends** (GLM, custom endpoints), set `CC_HUD_EXTRA_FILE` env var to a file whose first line is the text to display. See `scripts/ds-balance-cache.sh` for a reference cache implementation.
+### Other backends
 
-<br/>
-
-## Quota Display (MiniMax)
-
-When using **MiniMax M3** as the backend (`ANTHROPIC_BASE_URL` set to `https://api.minimaxi.com/anthropic`), cc-hud **automatically** shows your Token Plan quota — **zero configuration required**.
-
-```
-[MiniMax M3] █▎░░░░░░░░ 13% │ 5h:17% (1.1h) │ 7d:2% (6.4d)
-```
-
-Token Plan usage (5h interval ＋ weekly) is fetched from MiniMax's `/v1/token_plan/remains` endpoint, cached locally for 5 minutes. Model names are beautified automatically: `MiniMax-M3` → `MiniMax M3`, `MiniMax-M3[1m]` → `MiniMax M3 (1M)`, `abab-6.5s-chat` → `ABAB 6.5s Chat`.
-
-Works with `mmcode` or any launcher that sets `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`.
-
-<br/>
-
-## Balance Display (GLM)
-
-When using **GLM** as the backend (`ANTHROPIC_BASE_URL` set to `https://open.bigmodel.cn/api/anthropic` or `https://api.z.ai/api/anthropic`), cc-hud **automatically** shows your account balance — **zero configuration required**.
-
-```
-[GLM 5.2] ████▏░░░░░ 41% (1M) │ ¥88.50
-```
-
-Balance is cached locally for 5 minutes. On cache miss, cc-hud fetches the latest balance from GLM's account API. Works with `glmcode`, `ZCode`, or any launcher that sets `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`.
-
-Model names are beautified automatically: `glm-5.2` → `GLM 5.2`, `glm-5.2[1m]` → `GLM 5.2 (1M)`, `glm-5-turbo` → `GLM 5 Turbo`, `glm-4.5-air` → `GLM 4.5 Air`.
+Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to display. See `scripts/ds-balance-cache.sh` for a reference cache implementation.
 
 <br/>
 
 ## Development
 
 ```bash
-npm run build      # compile
-npm test           # 57 tests
+npm install
+npm run build      # compile TypeScript → dist/
+npm test           # 95 tests (node:test)
 ```
+
+Project layout:
+
+| Path | Purpose |
+| --- | --- |
+| `src/` | TypeScript source — entry, render, model normalize, DeepSeek / MiniMax / GLM pickers |
+| `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
+| `commands/setup.md` | `/cc-hud:setup` slash command |
+| `tests/` | `node:test` unit tests (TS + CJS) |
+| `dist/` | Compiled output, committed |
 
 <br/>
 
 ## Star History
 
 <a href="https://star-history.com/#WaterTian/cc-hud&Date">
-  <img src="https://api.star-history.com/svg?repos=WaterTian/cc-hud&type=Date" alt="Star History Chart" width="700" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WaterTian/cc-hud&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=WaterTian/cc-hud&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=WaterTian/cc-hud&type=Date" width="700" />
+  </picture>
 </a>
 
 <br/>
