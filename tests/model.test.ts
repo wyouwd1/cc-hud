@@ -98,4 +98,10 @@ describe('shortModelName', () => {
   it('beautifies legacy ChatGLM model ids', () => {
     assert.deepEqual(shortModelName(undefined, 'chatglm_turbo'), { name: 'ChatGLM Turbo', variant: null });
   });
+
+  it('parses GLM model from display_name when id is missing', () => {
+    // Some backends only send display_name, not id
+    assert.deepEqual(shortModelName('glm-5.2[1m]'), { name: 'GLM 5.2', variant: '1M' });
+    assert.deepEqual(shortModelName('glm-5-turbo'), { name: 'GLM 5 Turbo', variant: null });
+  });
 });
