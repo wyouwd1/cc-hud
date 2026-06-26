@@ -5,9 +5,10 @@ import { shortModelName } from './model.js';
 import { getExtra } from './balance.js';
 import { getMmxQuota } from './mmx.js';
 import { getGlmBalance } from './glm.js';
+import { getOpenCodeQuota } from './opencode.js';
 import { readFileSync } from 'node:fs';
 // Hard timeout — never block Claude Code
-const TIMEOUT_MS = 2000;
+const TIMEOUT_MS = 6000;
 setTimeout(() => process.exit(0), TIMEOUT_MS).unref();
 function readExtraFile() {
     const file = process.env.CC_HUD_EXTRA_FILE;
@@ -26,13 +27,13 @@ async function main() {
     // Parse transcript in parallel with render prep — no dependency
     const agentsPromise = parseAgents(data.transcript_path);
     // current_usage is null before the first API call, and again after /compact
-    // until the next API call repopulates it. In those windows show "—" instead
-    // of collapsing to 0%, which would look like the context just emptied.
+    // until the next API call repopulates it. We rely on used_percentage as the
+    // canonical field — if it's present, render it. Only fall back to "—" when
+    // even used_percentage is missing (true "we don't know yet").
     const cw = data.context_window;
-    const usageUnavailable = cw?.current_usage === null || cw?.used_percentage == null;
-    const contextPercent = usageUnavailable
-        ? null
-        : Math.round(cw.used_percentage);
+    const contextPercent = (cw?.used_percentage != null)
+        ? Math.round(cw.used_percentage)
+        : null;
     const agents = await agentsPromise;
     const toMs = (ts) => {
         if (ts == null)
@@ -40,20 +41,31 @@ async function main() {
         return ts < 1e12 ? ts * 1000 : ts;
     };
     const modelName = shortModelName(data.model?.display_name, data.model?.id);
-    // Extra segment: explicit CC_HUD_EXTRA_FILE > DeepSeek balance > GLM balance
-    const extra = readExtraFile() ?? (await getExtra()) ?? (await getGlmBalance());
-    // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
-    const mmQuota = await getMmxQuota();
+    // Fetch from various backend-specific sources in parallel —
+    // each module returns null when it doesn't apply (fast path).
+    const [ocQuota, mmQuota, extra] = await Promise.all([
+        getOpenCodeQuota(), // OpenCode Go subscription — fast cache path
+        getMmxQuota(), // MiniMax Token Plan — fast cache path
+        // Extra segment: explicit CC_HUD_EXTRA_FILE > DeepSeek balance > GLM balance
+        (async () => readExtraFile() ?? (await getExtra()) ?? (await getGlmBalance()))(),
+    ]);
     const renderData = {
         model: modelName.name,
         modelVariant: modelName.variant,
         contextPercent,
         agents,
-        fiveHourPercent: data.rate_limits?.five_hour?.used_percentage ?? mmQuota?.fiveHourUsedPct ?? null,
-        sevenDayPercent: data.rate_limits?.seven_day?.used_percentage ?? mmQuota?.sevenDayUsedPct ?? null,
-        fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at) ?? mmQuota?.fiveHourResetsAt ?? null,
-        sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at) ?? mmQuota?.sevenDayResetsAt ?? null,
+        // Priority: built-in rate limits > OpenCode quota > MiniMax quota
+        fiveHourPercent: data.rate_limits?.five_hour?.used_percentage
+            ?? ocQuota?.rollingPercent ?? mmQuota?.fiveHourUsedPct ?? null,
+        sevenDayPercent: data.rate_limits?.seven_day?.used_percentage
+            ?? ocQuota?.weeklyPercent ?? mmQuota?.sevenDayUsedPct ?? null,
+        fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at)
+            ?? ocQuota?.rollingResetsAt ?? mmQuota?.fiveHourResetsAt ?? null,
+        sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at)
+            ?? ocQuota?.weeklyResetsAt ?? mmQuota?.sevenDayResetsAt ?? null,
         extra,
+        monthlyPercent: ocQuota?.monthlyPercent ?? null,
+        monthlyResetsAt: ocQuota?.monthlyResetsAt ?? null,
     };
     console.log(render(renderData));
 }

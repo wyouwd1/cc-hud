@@ -31,13 +31,13 @@ async function main(): Promise<void> {
   const agentsPromise = parseAgents(data.transcript_path);
 
   // current_usage is null before the first API call, and again after /compact
-  // until the next API call repopulates it. In those windows show "—" instead
-  // of collapsing to 0%, which would look like the context just emptied.
+  // until the next API call repopulates it. We rely on used_percentage as the
+  // canonical field — if it's present, render it. Only fall back to "—" when
+  // even used_percentage is missing (true "we don't know yet").
   const cw = data.context_window;
-  const usageUnavailable = cw?.current_usage === null || cw?.used_percentage == null;
-  const contextPercent: number | null = usageUnavailable
-    ? null
-    : Math.round(cw!.used_percentage as number);
+  const contextPercent: number | null = (cw?.used_percentage != null)
+    ? Math.round(cw.used_percentage)
+    : null;
   const agents = await agentsPromise;
 
   const toMs = (ts: number | null | undefined): number | null => {
