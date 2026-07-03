@@ -4,7 +4,7 @@
   Pure Node.js, zero dependencies, crash-free on Windows (no Bun)
 
   ## Auto-install (for Claude Code AI agents)
-  Step 1: /plugin marketplace add WaterTian/cc-hud
+  Step 1: /plugin marketplace add wyouwd1/cc-hud
   Step 2: /plugin install cc-hud@cc-hud
   Step 3: /reload-plugins
   Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need step 1 + step 3)
@@ -14,8 +14,8 @@
 
 <p align="center">
   <picture>
-    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg" type="image/svg+xml" />
-    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png" alt="cc-hud preview — model, context bar, agents, rate limits, balance" width="900" />
+    <source srcset="https://raw.githubusercontent.com/wyouwd1/cc-hud/main/cc-hud-preview.svg" type="image/svg+xml" />
+    <img src="https://raw.githubusercontent.com/wyouwd1/cc-hud/main/cc-hud-preview.png" alt="cc-hud preview — model, context bar, agents, rate limits, balance" width="900" />
   </picture>
 </p>
 
@@ -80,7 +80,7 @@
 Inside Claude Code:
 
 ```
-/plugin marketplace add WaterTian/cc-hud
+/plugin marketplace add wyouwd1/cc-hud
 /plugin install cc-hud@cc-hud
 /reload-plugins
 /cc-hud:setup        # idempotent; safe to re-run
@@ -89,7 +89,7 @@ Inside Claude Code:
 **Done** — no restart needed; `/reload-plugins` hot-loads the HUD.
 
 > [!NOTE]
-> `/cc-hud:setup` installs a tiny launcher at `~/.claude/bin/cc-hud-launcher.cjs` and points `statusLine.command` at it. It is **idempotent** — re-running migrates old version-pinned paths and skips when already current. If `statusLine` is managed by [`cc-bot`](https://github.com/WaterTian/cc-bot)'s shim, setup detects this and leaves it alone (the shim already wraps cc-hud transparently).
+> `/cc-hud:setup` installs a tiny launcher at `~/.claude/bin/cc-hud-launcher.cjs` and points `statusLine.command` at it. It is **idempotent** — re-running migrates old version-pinned paths and skips when already current. If `statusLine` is managed by a shim, setup detects this and leaves it alone.
 
 ### Upgrade
 
@@ -130,7 +130,7 @@ Add to `~/.claude/settings.json`:
 <br/>
 
 ```bash
-git clone https://github.com/WaterTian/cc-hud.git
+git clone https://github.com/wyouwd1/cc-hud.git
 cd cc-hud && npm install && npm run build
 ```
 
@@ -173,7 +173,7 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
 
 ## Auto-detected Backends
 
-cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`glm-5.2[1m]` → `GLM 5.2 (1M)`, `MiniMax-M3` → `MiniMax M3`, etc.).
+cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota / subscription** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`glm-5.2[1m]` → `GLM 5.2 (1M)`, `MiniMax-M3` → `MiniMax M3`, etc.).
 
 <table>
 <tr>
@@ -195,6 +195,11 @@ cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota** automatic
   <td><b>GLM</b></td>
   <td><code>https://open.bigmodel.cn/api/anthropic</code><br/><code>https://api.z.ai/api/anthropic</code></td>
   <td>account balance — <code>¥88.50</code></td>
+</tr>
+<tr>
+  <td><b>OpenCode</b></td>
+  <td>detected via <code>OPENCODE_AUTH</code></td>
+  <td>Go subscription — <code>滚动7%(1.7h) │ 每周25%(2.8d) │ 月98%(6.9d)</code></td>
 </tr>
 </table>
 
@@ -245,14 +250,14 @@ See `scripts/ds-balance-cache.sh` for a full bash-based cache implementation tha
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 95 tests (node:test)
+npm test           # 110 tests (node:test)
 ```
 
 Project layout:
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | TypeScript source — entry, render, model normalize, DeepSeek / MiniMax / GLM pickers |
+| `src/` | TypeScript source — entry, render, model normalize, DeepSeek / MiniMax / GLM / OpenCode pickers |
 | `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
 | `commands/setup.md` | `/cc-hud:setup` slash command |
 | `tests/` | `node:test` unit tests (TS + CJS) |
@@ -262,11 +267,11 @@ Project layout:
 
 ## Star History
 
-<a href="https://star-history.com/#WaterTian/cc-hud&Date">
+<a href="https://star-history.com/#wyouwd1/cc-hud&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WaterTian/cc-hud&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=WaterTian/cc-hud&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=WaterTian/cc-hud&type=Date" width="700" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=wyouwd1/cc-hud&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=wyouwd1/cc-hud&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=wyouwd1/cc-hud&type=Date" width="700" />
   </picture>
 </a>
 
@@ -275,5 +280,5 @@ Project layout:
 ---
 
 <p align="center">
-  <sub>MIT License &copy; <a href="https://github.com/WaterTian">Water</a></sub>
+  <sub>MIT License &copy; <a href="https://github.com/wyouwd1">熊崽</a></sub>
 </p>
