@@ -199,7 +199,7 @@ cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota / subscript
 <tr>
   <td><b>OpenCode Go</b></td>
   <td>detected via <code>OPENCODE_AUTH</code></td>
-  <td>Go subscription — <code>滚动7%(1.7h) │ 每周25%(2.8d) │ 月98%(6.9d)</code></td>
+  <td>Go subscription — <code>5h:7% (1.7h) │ 7d:25% (2.8d) │ 月:98% (6.9d)</code></td>
 </tr>
 <tr>
   <td><b>Qwen (DashScope)</b></td>
@@ -250,7 +250,7 @@ For backends not listed above, or to display custom text, set the `CC_HUD_EXTRA_
 The extra segment appears on the right side of the status line after the context bar:
 
 ```
-[Sonnet 4.6] ██░░░░░░░░ 20% (1M) │ 滚动7%(1.7h) | 每周25%(2.8d) | 月98%(6.9d)
+[Sonnet 4.6] ██░░░░░░░░ 20% (1M) │ 5h:7% (1.7h) │ 7d:25% (2.8d) │ 月:39% (8.8d)
 ```
 
 **Reference implementations:**
