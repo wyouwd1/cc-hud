@@ -1,10 +1,5 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-const CACHE_DIR = '.cache/cc-hud';
-const TTL = 5 * 60 * 1000; // 5 min — matches balance.ts / mmx.ts
+import { readCached, writeCached, fetchWithTimeout, TTL } from './cache.js';
 const TIMEOUT_MS = 5000; // OpenCode workspace page is a full HTML render (~1-2s)
-// ── Detection ──────────────────────────────────────────────────────────
 function isOpenCode() {
     return !!process.env.OPENCODE_AUTH;
 }
@@ -17,26 +12,6 @@ function authCookie() {
         return null;
     return `oc_locale=zh; auth=${encodeURIComponent(auth)}`;
 }
-// ── Cache ──────────────────────────────────────────────────────────────
-function cacheFile() {
-    return join(homedir(), CACHE_DIR, 'oc-quota.json');
-}
-function readCache() {
-    try {
-        return JSON.parse(readFileSync(cacheFile(), 'utf8'));
-    }
-    catch {
-        return null;
-    }
-}
-function writeCache(payload) {
-    try {
-        mkdirSync(join(homedir(), CACHE_DIR), { recursive: true });
-        writeFileSync(cacheFile(), JSON.stringify({ payload, ts: Date.now() }));
-    }
-    catch { /* best effort */ }
-}
-// ── HTML parsing ───────────────────────────────────────────────────────
 /**
  * Extract usage data from the OpenCode workspace HTML page.
  *
@@ -46,12 +21,6 @@ function writeCache(payload) {
  *   monthlyUsage:$R[32]={status:"ok",resetInSec:597495,usagePercent:98}
  */
 function extractQuota(html) {
-    // Match each dimension independently so a partial page change
-    // doesn't kill the whole feature. The object literal is the same
-    // shape for all three: {status:"...",resetInSec:<num>,usagePercent:<num>}
-    // Each dimension is assigned like: rollingUsage:$R[N]={...}
-    // where the R-value reference may vary. Match the keyword followed by
-    // an optional $R[N] bridge and the object literal.
     const OBJECT_RE = /\{status:"[^"]+",resetInSec:(\d+),usagePercent:(\d+)\}/;
     function extract(keyword) {
         let pos = 0;
@@ -59,13 +28,11 @@ function extractQuota(html) {
             const idx = html.indexOf(keyword + ':', pos);
             if (idx === -1)
                 return null;
-            // Skip if the value is null (e.g. monthlyUsage:null in customer data)
             const afterColon = html.slice(idx + keyword.length + 1).trimStart();
             if (afterColon.startsWith('null')) {
-                pos = idx + 1; // resume search after this occurrence
+                pos = idx + 1;
                 continue;
             }
-            // Scan forward to find the next {...} object literal
             const rest = html.slice(idx + keyword.length + 1);
             const m = rest.match(OBJECT_RE);
             if (!m)
@@ -88,22 +55,18 @@ function extractQuota(html) {
         monthlyResetsAt: now + month[1] * 1000,
     };
 }
-// ── Fetch ──────────────────────────────────────────────────────────────
 async function fetchQuota() {
     const cookie = authCookie();
     if (!cookie)
         return null;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
-        const resp = await fetch(`https://opencode.ai/workspace/${wsId()}/go`, {
+        const resp = await fetchWithTimeout(`https://opencode.ai/workspace/${wsId()}/go`, {
             headers: {
                 accept: 'text/html',
                 cookie,
                 'user-agent': 'cc-hud/1.0',
             },
-            signal: ctrl.signal,
-        });
+        }, TIMEOUT_MS);
         if (!resp.ok)
             return null;
         return extractQuota(await resp.text());
@@ -111,32 +74,16 @@ async function fetchQuota() {
     catch {
         return null;
     }
-    finally {
-        clearTimeout(timer);
-        timer.unref();
-    }
 }
-// ── Public API ─────────────────────────────────────────────────────────
-/**
- * Returns the OpenCode Go subscription quota if:
- *  - OPENCODE_AUTH env var is set (detects OpenCode backend)
- *  - workspace page is reachable and parseable
- *
- * Returns null otherwise. Results are cached for 5 minutes with stale
- * fallback — silent on any failure, never blocks Claude Code.
- */
 export async function getOpenCodeQuota() {
     if (!isOpenCode())
         return null;
-    const cached = readCache();
-    // Fresh cache — instant return (99.9% of calls)
-    if (cached && Date.now() - cached.ts < TTL) {
+    const cached = readCached('oc-quota');
+    if (cached && Date.now() - cached.ts < TTL)
         return cached.payload;
-    }
-    // Cache miss — fetch, fall back to stale cache on failure
     const quota = await fetchQuota();
     if (quota) {
-        writeCache(quota);
+        writeCached('oc-quota', { payload: quota, ts: Date.now() });
         return quota;
     }
     return cached?.payload ?? null;

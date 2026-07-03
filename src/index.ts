@@ -52,11 +52,19 @@ async function main(): Promise<void> {
 
   // Fetch from various backend-specific sources in parallel —
   // each module returns null when it doesn't apply (fast path).
+  // Extra segment: explicit CC_HUD_EXTRA_FILE > Qwen > Moonshot > Groq > DeepSeek > GLM
+  const getExtraSegment = async (): Promise<string | null> =>
+    readExtraFile()
+      ?? await getQwenBalance()
+      ?? await getMoonshotBalance()
+      ?? await getGroqUsage()
+      ?? await getExtra()
+      ?? await getGlmBalance();
+
   const [ocQuota, mmQuota, extra] = await Promise.all([
-    getOpenCodeQuota(),          // OpenCode Go subscription — fast cache path
-    getMmxQuota(),               // MiniMax Token Plan — fast cache path
-    // Extra segment: explicit CC_HUD_EXTRA_FILE > Qwen > Moonshot > Groq > DeepSeek > GLM
-    (async () => readExtraFile() ?? (await getQwenBalance()) ?? (await getMoonshotBalance()) ?? (await getGroqUsage()) ?? (await getExtra()) ?? (await getGlmBalance()))(),
+    getOpenCodeQuota(),
+    getMmxQuota(),
+    getExtraSegment(),
   ]);
 
   const renderData: RenderData = {
