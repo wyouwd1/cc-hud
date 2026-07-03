@@ -54,3 +54,16 @@ Claude Code → stdin JSON → cc-hud → stdout → 状态栏
 - Claude Code 必须通过 npm 安装（`npm i -g @anthropic-ai/claude-code`），不要使用原生安装器（native installer）
   - 原生安装器的 `claude.exe` 内嵌 Bun 运行时，会触发 `pas panic: deallocation did fail` 崩溃
   - npm 版使用系统 Node.js，稳定无此问题
+
+## 语言约定
+
+继承全局规则 `~/.claude/rules/common/language.md`：
+
+| 内容 | 要求 |
+|------|------|
+| 回答/讨论 | 简体中文 |
+| 提交信息 | 中文 |
+| 代码注释 | 中文 |
+| 变量/函数命名 | 英文 |
+| 技术术语 | 保持英文（TypeScript、Node.js、ANSI 等） |
+| 日志/错误消息 | 中文 |
