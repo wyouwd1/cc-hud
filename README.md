@@ -33,9 +33,9 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/v/cc-hud?style=flat-square&color=cb3837" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@wyouwd1/cc-hud"><img src="https://img.shields.io/npm/v/@wyouwd1/cc-hud?style=flat-square&color=cb3837" alt="npm version" /></a>
   &nbsp;
-  <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/dm/cc-hud?style=flat-square&color=cb3837" alt="npm downloads" /></a>
+  <a href="https://www.npmjs.com/package/@wyouwd1/cc-hud"><img src="https://img.shields.io/npm/dm/@wyouwd1/cc-hud?style=flat-square&color=cb3837" alt="npm downloads" /></a>
   &nbsp;
   <a href="#install"><img src="https://img.shields.io/badge/install-3_commands-blueviolet?style=flat-square" alt="install" /></a>
   &nbsp;
@@ -108,7 +108,7 @@ Inside Claude Code:
 <br/>
 
 ```bash
-npm i -g cc-hud
+npm i -g @wyouwd1/cc-hud
 ```
 
 Add to `~/.claude/settings.json`:
@@ -117,7 +117,7 @@ Add to `~/.claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "npx cc-hud",
+    "command": "npx @wyouwd1/cc-hud",
     "padding": 2
   }
 }
