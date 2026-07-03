@@ -5,7 +5,7 @@ All notable changes to cc-hud are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.6.0] — 2026-07-03
 
 ### Added
 - OpenCode Go subscription quota display (rolling / weekly / monthly)
@@ -126,7 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Model name beautification
 - Tail read + pre-filter + timeout for performance
 
-[Unreleased]: https://github.com/wyouwd1/cc-hud
+[0.6.0]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.6.0
 [0.5.1]: https://github.com/WaterTian/cc-hud/releases/tag/v0.5.1
 [0.5.0]: https://github.com/WaterTian/cc-hud/releases/tag/v0.5.0
 [0.4.5]: https://github.com/WaterTian/cc-hud/releases/tag/v0.4.5
