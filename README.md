@@ -321,6 +321,12 @@ Project layout:
 
 <br/>
 
+## Acknowledgements
+
+cc-hud was originally created by [Water](https://github.com/WaterTian) ([WaterTian/cc-hud](https://github.com/WaterTian/cc-hud)). This repository is an independently maintained fork with continued development and additional features.
+
+<br/>
+
 ## Star History
 
 <a href="https://star-history.com/#wyouwd1/cc-hud&Date">
