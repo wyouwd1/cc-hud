@@ -154,6 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Model name beautification
 - Tail read + pre-filter + timeout for performance
 
+[0.6.1]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.6.1
 [0.6.0]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.6.0
 [0.5.1]: https://github.com/WaterTian/cc-hud/releases/tag/v0.5.1
 [0.5.0]: https://github.com/WaterTian/cc-hud/releases/tag/v0.5.0
