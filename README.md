@@ -1,45 +1,39 @@
 <!--
-  cc-hud — Claude Code statusline plugin
-  Shows: model name, context window usage (progress bar), active subagents, rate limits (5h/7d) with reset countdown
-  Pure Node.js, zero dependencies, crash-free on Windows (no Bun)
+  cc-hud — Claude Code 状态栏插件
+  显示：模型名、上下文用量（进度条）、活跃子代理、速率限制（5h/7d/月）含重置倒计时
+  纯 Node.js、零依赖、Windows 不崩溃（不用 Bun）
 
-  ## Auto-install (for Claude Code AI agents)
-  Step 1: /plugin marketplace add wyouwd1/cc-hud
-  Step 2: /plugin install cc-hud@cc-hud
-  Step 3: /reload-plugins
-  Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need step 1 + step 3)
-
-  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm token-plan
+  关键词：claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm token-plan
 -->
 
 <p align="center">
   <picture>
     <source srcset="https://raw.githubusercontent.com/wyouwd1/cc-hud/main/cc-hud-preview.svg" type="image/svg+xml" />
-    <img src="https://raw.githubusercontent.com/wyouwd1/cc-hud/main/cc-hud-preview.png" alt="cc-hud preview — model, context bar, agents, rate limits, balance" width="900" />
+    <img src="https://raw.githubusercontent.com/wyouwd1/cc-hud/main/cc-hud-preview.png" alt="cc-hud 预览 — 模型、上下文条、代理、速率限制、余额" width="900" />
   </picture>
 </p>
 
 <h1 align="center">CC-HUD</h1>
 
 <p align="center">
-  <strong>A compact, single-line statusline plugin for <a href="https://claude.ai/claude-code">Claude Code</a></strong><br/>
-  <sub>Crash-free, zero-dependency status bar — model · context · agents · rate limits · reset countdown</sub>
+  <strong>Claude Code 精简单行状态栏插件</strong><br/>
+  <sub>零崩溃、零依赖 — 模型 · 上下文 · 代理 · 速率限制 · 重置倒计时</sub>
 </p>
 
 <p align="center">
-  <code>Model</code> &nbsp;&rarr;&nbsp; <code>Context</code> &nbsp;&rarr;&nbsp; <code>Agents</code> &nbsp;&rarr;&nbsp; <code>Rate Limits</code>
+  <code>模型</code> &nbsp;&rarr;&nbsp; <code>上下文</code> &nbsp;&rarr;&nbsp; <code>代理</code> &nbsp;&rarr;&nbsp; <code>速率限制</code>
   <br/>
-  <sub>everything you need, nothing you don't.</sub>
+  <sub>你需要的一切，不多不少。</sub>
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@wyouwd1/cc-hud"><img src="https://img.shields.io/npm/v/@wyouwd1/cc-hud?style=flat-square&color=cb3837" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@wyouwd1/cc-hud"><img src="https://img.shields.io/npm/v/@wyouwd1/cc-hud?style=flat-square&color=cb3837" alt="npm 版本" /></a>
   &nbsp;
-  <a href="https://www.npmjs.com/package/@wyouwd1/cc-hud"><img src="https://img.shields.io/npm/dm/@wyouwd1/cc-hud?style=flat-square&color=cb3837" alt="npm downloads" /></a>
+  <a href="https://www.npmjs.com/package/@wyouwd1/cc-hud"><img src="https://img.shields.io/npm/dm/@wyouwd1/cc-hud?style=flat-square&color=cb3837" alt="npm 下载量" /></a>
   &nbsp;
-  <a href="#install"><img src="https://img.shields.io/badge/install-3_commands-blueviolet?style=flat-square" alt="install" /></a>
+  <a href="#安装"><img src="https://img.shields.io/badge/安装-3_条命令-blueviolet?style=flat-square" alt="安装" /></a>
   &nbsp;
-  <img src="https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square" alt="zero deps" />
+  <img src="https://img.shields.io/badge/依赖-0-brightgreen?style=flat-square" alt="零依赖" />
   &nbsp;
   <img src="https://img.shields.io/badge/node-%3E%3D18-blue?style=flat-square" alt="node >= 18" />
   &nbsp;
@@ -48,50 +42,48 @@
 
 <br/>
 
-## Why CC-HUD?
+## 为什么用 CC-HUD？
 
-**Problem.** Claude Code's native installer bundles [Bun](https://bun.sh), which has a known memory allocator bug on **Windows** ([oven-sh/bun#25082](https://github.com/oven-sh/bun/issues/25082)). Statusline plugins like [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud) run **on every tick**, amplifying memory pressure and making `pas panic` crashes far more likely.
+**问题。** Claude Code 的原生安装器内嵌了 [Bun](https://bun.sh)，在 **Windows** 上存在已知的内存分配器 Bug（[oven-sh/bun#25082](https://github.com/oven-sh/bun/issues/25082)）。状态栏插件（如 [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud)）在 **每次 tick** 都会运行，放大了内存压力，大大增加 `pas panic` 崩溃的几率。
 
-**Solution.** CC-HUD is a **crash-free alternative** — pure Node.js, zero deps, stateless per call, ~60ms render, 2s hard timeout. Designed to keep your status bar running without taking Claude Code down.
+**解决方案。** CC-HUD 是一个**零崩溃的替代方案** — 纯 Node.js、零依赖、每次调用无状态、~60ms 渲染、2s 硬超时。专为保持状态栏稳定运行而设计，不会拖垮 Claude Code。
 
 > [!TIP]
-> **Windows users:** Use `npm i -g @anthropic-ai/claude-code` instead of the native installer to avoid Bun crashes entirely.
->
 > **Windows 用户：** 建议用 `npm i -g @anthropic-ai/claude-code` 代替原生安装器，彻底规避 Bun 崩溃。
 
 <br/>
 
-## Features
+## 功能
 
 <table>
 <tr>
-  <td align="center" width="20%"><h3>█▌</h3><b>Context Bar</b><br/><sub>1/8-precision blocks<br/>80-level granularity</sub></td>
-  <td align="center" width="20%"><h3>◧</h3><b>Color</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>dual-tone gradient</sub></td>
-  <td align="center" width="20%"><h3>◐</h3><b>Agents</b><br/><sub>Running subagents<br/>with type & model</sub></td>
-  <td align="center" width="20%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d usage<br/>+ reset countdown</sub></td>
-  <td align="center" width="20%"><h3>0</h3><b>Dependencies</b><br/><sub>Zero. Node.js<br/>built-ins only</sub></td>
+  <td align="center" width="20%"><h3>█▌</h3><b>上下文条</b><br/><sub>1/8 精度块<br/>80 级粒度</sub></td>
+  <td align="center" width="20%"><h3>◧</h3><b>颜色</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>双色渐变</sub></td>
+  <td align="center" width="20%"><h3>◐</h3><b>代理</b><br/><sub>运行中的子代理<br/>含类型和模型</sub></td>
+  <td align="center" width="20%"><h3>%</h3><b>速率限制</b><br/><sub>5h / 7d / 月<br/>+ 重置倒计时</sub></td>
+  <td align="center" width="20%"><h3>0</h3><b>依赖</b><br/><sub>零。仅用<br/>Node 内置模块</sub></td>
 </tr>
 </table>
 
 <br/>
 
-## Install
+## 安装
 
-Inside Claude Code:
+在 Claude Code 中执行：
 
 ```
-/plugin marketplace add wyouwd1/cc-hud
+/plugin marketplace add wyoud1/cc-hud
 /plugin install cc-hud@cc-hud
 /reload-plugins
-/cc-hud:setup        # idempotent; safe to re-run
+/cc-hud:setup        # 幂等，可重复运行
 ```
 
-**Done** — no restart needed; `/reload-plugins` hot-loads the HUD.
+**完成** — 无需重启；`/reload-plugins` 热加载 HUD。
 
 > [!NOTE]
-> `/cc-hud:setup` installs a tiny launcher at `~/.claude/bin/cc-hud-launcher.cjs` and points `statusLine.command` at it. It is **idempotent** — re-running migrates old version-pinned paths and skips when already current. If `statusLine` is managed by a shim, setup detects this and leaves it alone.
+> `/cc-hud:setup` 会在 `~/.claude/bin/cc-hud-launcher.cjs` 安装一个小型启动器，并将 `statusLine.command` 指向它。该命令是**幂等的**——重复运行会自动迁移旧版路径，已经最新的情况下直接跳过。
 
-### Upgrade
+### 升级
 
 ```
 /plugin marketplace update cc-hud
@@ -99,19 +91,19 @@ Inside Claude Code:
 ```
 
 > [!NOTE]
-> Since **v0.5.0**, `/cc-hud:setup` installs a small **launcher** at `~/.claude/bin/cc-hud-launcher.cjs` and points `statusLine.command` at it. The launcher resolves the currently installed cc-hud version on each tick, so plugin upgrades no longer require re-running `/cc-hud:setup`.
+> 自 **v0.5.0** 起，`/cc-hud:setup` 安装了一个小型**启动器**位于 `~/.claude/bin/cc-hud-launcher.cjs`，并将 `statusLine.command` 指向它。启动器在每次 tick 时解析当前已安装的 cc-hud 版本，因此插件升级不再需要重新运行 `/cc-hud:setup`。
 >
-> Upgrading from **≤0.4.x**? Re-run `/cc-hud:setup` **once** — it auto-detects the old version-pinned path and migrates it to the launcher.
+> 从 **≤0.4.x** 升级？重新运行 `/cc-hud:setup` **一次**——它会自动检测旧版路径并迁移到启动器。
 
 <details>
-<summary><b>Via npm (manual)</b></summary>
+<summary><b>通过 npm 安装</b></summary>
 <br/>
 
 ```bash
 npm i -g @wyouwd1/cc-hud
 ```
 
-Add to `~/.claude/settings.json`:
+添加到 `~/.claude/settings.json`：
 
 ```json
 {
@@ -126,7 +118,7 @@ Add to `~/.claude/settings.json`:
 </details>
 
 <details>
-<summary><b>From source</b></summary>
+<summary><b>从源码安装</b></summary>
 <br/>
 
 ```bash
@@ -134,7 +126,7 @@ git clone https://github.com/wyouwd1/cc-hud.git
 cd cc-hud && npm install && npm run build
 ```
 
-Add to `~/.claude/settings.json`:
+添加到 `~/.claude/settings.json`：
 
 ```json
 {
@@ -150,41 +142,41 @@ Add to `~/.claude/settings.json`:
 
 <br/>
 
-## How It Works
+## 工作原理
 
 ```
-Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← stable path (v0.5+)
-                              │ resolves the currently installed cc-hud
+Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← 稳定路径 (v0.5+)
+                              │ 解析当前安装的 cc-hud
                               ▼
-                             cc-hud dist/index.js  ──stdout──→ status bar
-                              ↘ transcript JSONL (tail 64KB → active agents)
+                             cc-hud dist/index.js  ──stdout──→ 状态栏
+                              ↘ transcript JSONL (尾部 64KB → 活跃代理)
 ```
 
 <table>
 <tr>
-  <td align="center" width="25%"><b>Stateless</b><br/><sub>Fresh process per tick<br/>zero memory leaks</sub></td>
-  <td align="center" width="25%"><b>Fast</b><br/><sub>~60ms render<br/>within 300ms debounce</sub></td>
-  <td align="center" width="25%"><b>Safe</b><br/><sub>2s hard timeout<br/>all IO try-catch</sub></td>
-  <td align="center" width="25%"><b>Upgrade-safe</b><br/><sub>Stable launcher (v0.5+)<br/>no re-setup on upgrade</sub></td>
+  <td align="center" width="25%"><b>无状态</b><br/><sub>每次 tick 全新进程<br/>零内存泄漏</sub></td>
+  <td align="center" width="25%"><b>快速</b><br/><sub>~60ms 渲染<br/>300ms 去抖内完成</sub></td>
+  <td align="center" width="25%"><b>安全</b><br/><sub>2s 硬超时<br/>所有 IO 都有 try-catch</sub></td>
+  <td align="center" width="25%"><b>升级无忧</b><br/><sub>稳定启动器 (v0.5+)<br/>升级无需重新配置</sub></td>
 </tr>
 </table>
 
 <br/>
 
-## Auto-detected Backends
+## 自动检测的后端
 
-cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota / subscription** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`glm-5.2[1m]` → `GLM 5.2 (1M)`, `MiniMax-M3` → `MiniMax M3`, etc.). Set `CC_HUD_THEME` to switch color schemes.
+cc-hud 会自动检测你的 `ANTHROPIC_BASE_URL`，自动拉取**余额 / 配额 / 订阅信息**——**零配置**，本地缓存 5 分钟。模型名称会自动美化（`glm-5.2[1m]` → `GLM 5.2 (1M)`，`MiniMax-M3` → `MiniMax M3` 等）。设置 `CC_HUD_THEME` 可切换配色方案。
 
 <table>
 <tr>
-  <th>Backend</th>
+  <th>后端</th>
   <th><code>ANTHROPIC_BASE_URL</code></th>
-  <th>Extra segment</th>
+  <th>额外字段</th>
 </tr>
 <tr>
   <td><b>DeepSeek</b></td>
   <td><code>https://api.deepseek.com/anthropic</code></td>
-  <td>account balance — <code>¥13.44</code></td>
+  <td>账户余额 — <code>¥13.44</code></td>
 </tr>
 <tr>
   <td><b>MiniMax</b></td>
@@ -194,31 +186,31 @@ cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota / subscript
 <tr>
   <td><b>GLM</b></td>
   <td><code>https://open.bigmodel.cn/api/anthropic</code><br/><code>https://api.z.ai/api/anthropic</code></td>
-  <td>account balance — <code>¥88.50</code></td>
+  <td>账户余额 — <code>¥88.50</code></td>
 </tr>
 <tr>
   <td><b>OpenCode Go</b></td>
-  <td>detected via <code>OPENCODE_AUTH</code></td>
-  <td>Go subscription — <code>5h:7% (1.7h) │ 7d:25% (2.8d) │ 月:98% (6.9d)</code></td>
+  <td>通过 <code>OPENCODE_AUTH</code> 检测</td>
+  <td>Go 订阅 — <code>5h:7% (1.7h) │ 7d:25% (2.8d) │ 月:98% (6.9d)</code></td>
 </tr>
 <tr>
   <td><b>Qwen (DashScope)</b></td>
   <td><code>https://dashscope.aliyuncs.com/compatible-mode/anthropic</code></td>
-  <td>account balance — <code>¥88.50</code></td>
+  <td>账户余额 — <code>¥88.50</code></td>
 </tr>
 <tr>
   <td><b>Moonshot (Kimi)</b></td>
   <td><code>https://api.moonshot.cn/anthropic</code></td>
-  <td>account balance — <code>¥66.60</code></td>
+  <td>账户余额 — <code>¥66.60</code></td>
 </tr>
 <tr>
   <td><b>Groq</b></td>
   <td><code>https://api.groq.com/anthropic</code></td>
-  <td>usage/quota — <code>9500</code></td>
+  <td>用量/配额 — <code>9500</code></td>
 </tr>
 </table>
 
-Example output:
+输出示例：
 
 ```
 [DeepSeek V4 Pro] ██░░░░░░░░ 20% │ ¥13.44
@@ -229,11 +221,11 @@ Example output:
 [Groq Llama]      █▎░░░░░░░░ 13% │ 9500
 ```
 
-Works with `dscode` / `mmcode` / `glmcode` / `ZCode` or any launcher that exports `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`.
+兼容 `dscode` / `mmcode` / `glmcode` / `ZCode` 或任何设置了 `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` 的启动器。
 
-### Other backends / custom extra segment
+### 其他后端 / 自定义额外字段
 
-For backends not listed above, or to display custom text, set the `CC_HUD_EXTRA_FILE` environment variable to point at a file whose first line is the text to display. The file is read synchronously on each HUD tick — keep it cheap.
+对于未列出的后端，或想要显示自定义文本，设置 `CC_HUD_EXTRA_FILE` 环境变量指向一个文件，文件的第一行即为要显示的文本。该文件在每次 HUD tick 时同步读取——保持内容轻量。
 
 ```json
 // ~/.claude/settings.json
@@ -245,35 +237,33 @@ For backends not listed above, or to display custom text, set the `CC_HUD_EXTRA_
 ```
 
 > [!IMPORTANT]
-> **Windows users:** Always use **forward slashes** (`C:/Users/...`) or **escaped backslashes** (`C:\\Users\\...`) in the path. Raw backslashes like `C:\Users\...` cause Node.js `\0` null-byte truncation and the file will silently not be read.
+> **Windows 用户：** 始终使用**正斜杠**（`C:/Users/...`）或**转义反斜杠**（`C:\\Users\\...`）。原始反斜杠 `C:\Users\...` 会导致 Node.js `\0` 空字节截断，文件会静默无法读取。
 
-The extra segment appears on the right side of the status line after the context bar:
+额外字段出现在状态栏右侧，上下文条之后：
 
 ```
 [Sonnet 4.6] ██░░░░░░░░ 20% (1M) │ 5h:7% (1.7h) │ 7d:25% (2.8d) │ 月:39% (8.8d)
 ```
 
-**Reference implementations:**
+**参考实现：**
 
-| Script | Purpose |
+| 脚本 | 用途 |
 | --- | --- |
-| [`scripts/ds-balance-cache.sh`](scripts/ds-balance-cache.sh) | Query DeepSeek balance, cache to `CC_HUD_EXTRA_FILE` target |
-
-See `scripts/ds-balance-cache.sh` for a full bash-based cache implementation that pairs with this env var.
+| [`scripts/ds-balance-cache.sh`](scripts/ds-balance-cache.sh) | 查询 DeepSeek 余额，缓存到 `CC_HUD_EXTRA_FILE` 目标 |
 
 <br/>
 
-## Customization
+## 个性化
 
-### Themes
+### 主题
 
-Set `CC_HUD_THEME` to switch color schemes:
+设置 `CC_HUD_THEME` 切换配色方案：
 
-| Value | Palette |
+| 值 | 调色板 |
 |-------|---------|
-| `catppuccin` (default) | Catppuccin Mocha — green / yellow / peach / red |
-| `dracula` | Dracula — green / yellow / orange / red |
-| `nord` | Nord — aurora green / yellow / orange / red |
+| `catppuccin`（默认）| Catppuccin Mocha — 绿 / 黄 / 桃 / 红 |
+| `dracula` | Dracula — 绿 / 黄 / 橙 / 红 |
+| `nord` | Nord — 极光绿 / 黄 / 橙 / 红 |
 
 ```json
 // ~/.claude/settings.json
@@ -284,9 +274,9 @@ Set `CC_HUD_THEME` to switch color schemes:
 }
 ```
 
-### Compact mode
+### 紧凑模式
 
-Set `CC_HUD_COMPACT=1` to show only the model name and context progress bar — ideal for narrow terminals or minimal setups:
+设置 `CC_HUD_COMPACT=1` 仅显示模型名和上下文进度条——适合窄终端或极简布局：
 
 ```json
 // ~/.claude/settings.json
@@ -297,43 +287,43 @@ Set `CC_HUD_COMPACT=1` to show only the model name and context progress bar — 
 }
 ```
 
-Output is reduced to: `[Sonnet 4.6] ██░░░░░░░░ 20%`
+输出简化为：`[Sonnet 4.6] ██░░░░░░░░ 20%`
 
 <br/>
 
-## Development
+## 开发
 
 ```bash
 npm install
-npm run build      # compile TypeScript → dist/
-npm test           # 164 tests (node:test)
+npm run build        # 编译 TypeScript → dist/
+npm test             # 164 个测试 (node:test)
 ```
 
-Project layout:
+项目结构：
 
-| Path | Purpose |
+| 路径 | 说明 |
 | --- | --- |
-| `src/` | TypeScript source — entry, render, model normalize, DeepSeek / MiniMax / GLM / OpenCode Go / Qwen / Moonshot / Groq pickers |
-| `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
-| `commands/setup.md` | `/cc-hud:setup` slash command |
-| `tests/` | `node:test` unit tests (TS + CJS) |
-| `dist/` | Compiled output, committed |
+| `src/` | TypeScript 源码 — 入口、渲染、模型美化、DeepSeek / MiniMax / GLM / OpenCode Go / Qwen / Moonshot / Groq |
+| `scripts/launcher.cjs` | 稳定路径启动器（`/cc-hud:setup` 复制到 `~/.claude/bin/`）|
+| `commands/setup.md` | `/cc-hud:setup` 斜杠命令 |
+| `tests/` | `node:test` 单元测试 |
+| `dist/` | 编译产物，已提交 |
 
 <br/>
 
-## Acknowledgements
+## 致谢
 
-cc-hud was originally created by [Water](https://github.com/WaterTian) ([WaterTian/cc-hud](https://github.com/WaterTian/cc-hud)). This repository is an independently maintained fork with continued development and additional features.
+cc-hud 最初由 [Water](https://github.com/WaterTian)（[WaterTian/cc-hud](https://github.com/WaterTian/cc-hud)）创建。本仓库是独立维护的 fork，包含持续开发和新增功能。
 
 <br/>
 
-## Star History
+## Star 历史
 
 <a href="https://star-history.com/#wyouwd1/cc-hud&Date">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=wyouwd1/cc-hud&type=Date&theme=dark" />
     <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=wyouwd1/cc-hud&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=wyouwd1/cc-hud&type=Date" width="700" />
+    <img alt="Star 历史图" src="https://api.star-history.com/svg?repos=wyouwd1/cc-hud&type=Date" width="700" />
   </picture>
 </a>
 
