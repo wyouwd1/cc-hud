@@ -11,7 +11,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "npm run build && node --test",
-    "test:stdin": "npm run build && echo {\"model\":{\"id\":\"claude-opus-4-7[1m]\",\"display_name\":\"Opus 4.7 (1M context)\"},\"context_window\":{\"used_percentage\":13,\"context_window_size\":1000000},\"rate_limits\":{\"five_hour\":{\"used_percentage\":18},\"seven_day\":{\"used_percentage\":2}}} | node dist/index.js"
+    "test:stdin": "npm run build && echo {\"model\":{\"id\":\"claude-opus-4-7[1m]\",\"display_name\":\"Opus 4.7 (1M context)\"},\"context_window\":{\"used_percentage\":13,\"context_window_size\":1000000},\"rate_limits\":{\"five_hour\":{\"used_percentage\":18},\"seven_day\":{\"used_percentage\":2}}} | node dist/index.js",
+    "coverage": "npm run build && node --experimental-test-coverage --test"
   },
   "files": [
     "dist/",
@@ -37,6 +38,7 @@
   ],
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "c8": "^11.0.0",
     "typescript": "^5.0.0"
   }
 }
