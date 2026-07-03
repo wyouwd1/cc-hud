@@ -1,5 +1,5 @@
 {
-  "name": "cc-hud",
+  "name": "@wyouwd1/cc-hud",
   "version": "0.6.0",
   "description": "Compact statusline HUD for Claude Code — context, agents, rate limits",
   "type": "module",
