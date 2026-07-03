@@ -31,3 +31,6 @@ docs/
 # Tools & Temp
 screenshots/
 drafts/
+
+# Config / secrets (user-local)
+config.md
