@@ -39,7 +39,7 @@ Read `<HOME>/.claude/settings.json` (treat as `{}` if missing or unreadable). Th
   "statusLine": {
     "type": "command",
     "command": "node <HOME>/.claude/bin/cc-hud-launcher.cjs",
-    "padding": 2
+    "padding": 0
   }
 }
 ```

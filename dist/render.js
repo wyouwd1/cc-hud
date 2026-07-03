@@ -147,7 +147,7 @@ export function render(data) {
     // Rate limits & quotas (up to three segments: 5h/滚动, 7d/每周, 月)
     const r5 = rateSegment('5h', data.fiveHourPercent, data.fiveHourResetsAt);
     const r7 = rateSegment('7d', data.sevenDayPercent, data.sevenDayResetsAt);
-    const rm = rateSegment('月', data.monthlyPercent, data.monthlyResetsAt);
+    const rm = rateSegment('mo', data.monthlyPercent, data.monthlyResetsAt);
     const rateParts = [r5, r7, rm].filter((s) => s !== null);
     if (rateParts.length > 0) {
         segments.push(rateParts.join(` ${C.overlay}│${RESET} `));
