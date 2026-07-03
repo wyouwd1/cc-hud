@@ -1,37 +1,76 @@
-// — Catppuccin Mocha palette (ANSI 256) —
+// — Theme support: CC_HUD_THEME=(catppuccin|dracula|nord) —
 const RESET = '\x1b[0m';
 const fg = (n) => `\x1b[38;5;${n}m`;
-const GREEN = fg(151); // #a6e3a1 — ok
-const YELLOW = fg(223); // #f9e2af — caution
-const PEACH = fg(216); // #fab387 — warning
-const RED = fg(211); // #f38ba8 — critical
-const TEAL = fg(115); // #94e2d5 — agent accent
-const BLUE = fg(111); // #89b4fa — info accent
-const SAPPHIRE = fg(117); // #74c7ec — countdown: plenty
-const LAVENDER = fg(147); // #b4befe — countdown: moderate
-const FLAMINGO = fg(224); // #f2cdcd — countdown: attention
-const MAROON = fg(217); // #eba0ac — countdown: urgent
-const OVERLAY = fg(243); // #6c7086 — dim/separator
-const SURFACE = fg(238); // #313244 — bar track
-const TEXT = fg(189); // #cdd6f4 — primary text
+const THEMES = {
+    catppuccin: {
+        green: fg(151), // #a6e3a1
+        yellow: fg(223), // #f9e2af
+        peach: fg(216), // #fab387
+        red: fg(211), // #f38ba8
+        teal: fg(115), // #94e2d5
+        blue: fg(111), // #89b4fa
+        sapphire: fg(117), // #74c7ec
+        lavender: fg(147), // #b4befe
+        flamingo: fg(224), // #f2cdcd
+        maroon: fg(217), // #eba0ac
+        overlay: fg(243), // #6c7086
+        surface: fg(238), // #313244
+        text: fg(189), // #cdd6f4
+    },
+    dracula: {
+        green: fg(85), // #50fa7b
+        yellow: fg(228), // #f1fa8c
+        peach: fg(215), // #ffb86c
+        red: fg(210), // #ff5555
+        teal: fg(123), // #8be9fd
+        blue: fg(141), // #bd93f9
+        sapphire: fg(117), // #81a1c1 — frost
+        lavender: fg(147), // #b4befe
+        flamingo: fg(224), // #f2cdcd
+        maroon: fg(212), // #ff79c6
+        overlay: fg(243), // #6c7086
+        surface: fg(237), // #313244
+        text: fg(255), // #f8f8f2
+    },
+    nord: {
+        green: fg(149), // #a3be8c
+        yellow: fg(223), // #ebcb8b
+        peach: fg(173), // #d08770
+        red: fg(167), // #bf616a
+        teal: fg(117), // #88c0d0
+        blue: fg(109), // #81a1c1
+        sapphire: fg(117), // #88c0d0
+        lavender: fg(147), // #b4befe
+        flamingo: fg(224), // #f2cdcd
+        maroon: fg(175), // #b48ead
+        overlay: fg(243), // #4c566a
+        surface: fg(238), // #2e3440
+        text: fg(189), // #eceff4
+    },
+};
+function loadTheme() {
+    const name = (process.env.CC_HUD_THEME ?? 'catppuccin').toLowerCase();
+    return THEMES[name] ?? THEMES.catppuccin;
+}
+const C = loadTheme();
 // — Bar config —
 const BAR_WIDTH = 10;
 const BLOCKS = [' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
 const TRACK_CHAR = '░';
 function color(percent) {
     if (percent <= 50)
-        return GREEN;
+        return C.green;
     if (percent <= 70)
-        return YELLOW;
+        return C.yellow;
     if (percent <= 85)
-        return PEACH;
-    return RED;
+        return C.peach;
+    return C.red;
 }
 function progressBar(percent) {
     // null = current_usage not yet populated (start of session or just after /compact)
     // — render an empty track + dim em-dash so it doesn't look like context reset.
     if (percent === null) {
-        return `${SURFACE}${TRACK_CHAR.repeat(BAR_WIDTH)}${RESET} ${OVERLAY}—%${RESET}`;
+        return `${C.surface}${TRACK_CHAR.repeat(BAR_WIDTH)}${RESET} ${C.overlay}—%${RESET}`;
     }
     const clamped = Math.max(0, Math.min(100, percent));
     const total = (clamped / 100) * BAR_WIDTH;
@@ -41,7 +80,7 @@ function progressBar(percent) {
     const c = color(clamped);
     const bar = c + '█'.repeat(full) +
         (frac > 0 ? BLOCKS[frac] : '') +
-        RESET + SURFACE +
+        RESET + C.surface +
         TRACK_CHAR.repeat(Math.max(0, empty)) +
         RESET;
     return `${bar} ${c}${clamped}%${RESET}`;
@@ -49,12 +88,12 @@ function progressBar(percent) {
 function countdownColor(ms) {
     const hours = ms / 3_600_000;
     if (hours >= 24)
-        return SAPPHIRE;
+        return C.sapphire;
     if (hours >= 3)
-        return LAVENDER;
+        return C.lavender;
     if (hours >= 0.5)
-        return FLAMINGO;
-    return MAROON;
+        return C.flamingo;
+    return C.maroon;
 }
 function formatCountdown(resetsAt) {
     if (resetsAt == null)
@@ -79,23 +118,28 @@ function rateSegment(label, percent, resetsAt) {
     const clamped = Math.round(Math.max(0, Math.min(100, percent)));
     const c = color(clamped);
     const cd = formatCountdown(resetsAt);
-    const suffix = cd ? ` ${OVERLAY}(${RESET}${cd.color}${cd.text}${RESET}${OVERLAY})${RESET}` : '';
-    return `${OVERLAY}${label}:${RESET}${c}${clamped}%${RESET}${suffix}`;
+    const suffix = cd ? ` ${C.overlay}(${RESET}${cd.color}${cd.text}${RESET}${C.overlay})${RESET}` : '';
+    return `${C.overlay}${label}:${RESET}${c}${clamped}%${RESET}${suffix}`;
 }
 function agentSegment(agents) {
     if (agents.length === 0)
         return null;
     const parts = agents.slice(0, 3).map(a => {
-        const model = a.model ? ` ${OVERLAY}[${a.model}]${RESET}` : '';
-        return `${TEAL}◐${RESET} ${TEXT}${a.type}${RESET}${model}`;
+        const model = a.model ? ` ${C.overlay}[${a.model}]${RESET}` : '';
+        return `${C.teal}◐${RESET} ${C.text}${a.type}${RESET}${model}`;
     });
     return parts.join(' ');
 }
 export function render(data) {
+    const compact = process.env.CC_HUD_COMPACT === '1';
     const segments = [];
     // Model + context bar (variant suffix lives here — it describes context capacity)
-    const variant = data.modelVariant ? ` ${OVERLAY}(${data.modelVariant})${RESET}` : '';
-    segments.push(`${OVERLAY}[${RESET}${BLUE}${data.model}${RESET}${OVERLAY}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
+    const variant = data.modelVariant ? ` ${C.overlay}(${data.modelVariant})${RESET}` : '';
+    segments.push(`${C.overlay}[${RESET}${C.blue}${data.model}${RESET}${C.overlay}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
+    // Compact mode: model + context bar only
+    if (compact) {
+        return segments.join(` ${C.overlay}│${RESET} `);
+    }
     // Agents (if any)
     const agentStr = agentSegment(data.agents);
     if (agentStr)
@@ -106,11 +150,11 @@ export function render(data) {
     const rm = rateSegment('月', data.monthlyPercent, data.monthlyResetsAt);
     const rateParts = [r5, r7, rm].filter((s) => s !== null);
     if (rateParts.length > 0) {
-        segments.push(rateParts.join(` ${OVERLAY}│${RESET} `));
+        segments.push(rateParts.join(` ${C.overlay}│${RESET} `));
     }
     // Extra (generic pluggable segment, e.g. balance for non-Anthropic backends)
     if (data.extra) {
-        segments.push(`${TEAL}${data.extra}${RESET}`);
+        segments.push(`${C.teal}${data.extra}${RESET}`);
     }
-    return segments.join(` ${OVERLAY}│${RESET} `);
+    return segments.join(` ${C.overlay}│${RESET} `);
 }

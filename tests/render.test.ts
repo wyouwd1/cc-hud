@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { render } from '../dist/render.js';
 import type { RenderData } from '../dist/types.js';
@@ -186,5 +186,42 @@ describe('render', () => {
   it('null contextPercent renders an empty track, not a filled bar', () => {
     const raw = render(makeData({ contextPercent: null }));
     assert.ok(!raw.includes('█'));
+  });
+
+  // ─── Compact mode ────────────────────────────────────────────
+
+  describe('compact mode (CC_HUD_COMPACT=1)', () => {
+    const origCompact = process.env.CC_HUD_COMPACT;
+
+    beforeEach(() => { process.env.CC_HUD_COMPACT = '1'; });
+    afterEach(() => {
+      if (origCompact === undefined) delete process.env.CC_HUD_COMPACT;
+      else process.env.CC_HUD_COMPACT = origCompact;
+    });
+
+    it('shows model and context bar', () => {
+      const out = strip(render(makeData({ model: 'Opus', contextPercent: 33 })));
+      assert.match(out, /\[Opus\]/);
+      assert.match(out, /33%/);
+    });
+
+    it('hides agent segment', () => {
+      const out = strip(render(makeData({
+        agents: [{ id: '1', type: 'explore', status: 'running' }],
+      })));
+      assert.ok(!out.includes('◐'));
+      assert.ok(!out.includes('explore'));
+    });
+
+    it('hides rate limit segments', () => {
+      const out = strip(render(makeData({ fiveHourPercent: 50, sevenDayPercent: 10 })));
+      assert.ok(!out.includes('5h:'));
+      assert.ok(!out.includes('7d:'));
+    });
+
+    it('hides extra segment', () => {
+      const out = strip(render(makeData({ extra: '¥3.77' })));
+      assert.ok(!out.includes('¥'));
+    });
   });
 });
