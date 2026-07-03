@@ -173,7 +173,7 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
 
 ## Auto-detected Backends
 
-cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota / subscription** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`glm-5.2[1m]` → `GLM 5.2 (1M)`, `MiniMax-M3` → `MiniMax M3`, etc.).
+cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota / subscription** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`glm-5.2[1m]` → `GLM 5.2 (1M)`, `MiniMax-M3` → `MiniMax M3`, etc.). Set `CC_HUD_THEME` to switch color schemes.
 
 <table>
 <tr>
@@ -197,9 +197,14 @@ cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota / subscript
   <td>account balance — <code>¥88.50</code></td>
 </tr>
 <tr>
-  <td><b>OpenCode</b></td>
+  <td><b>OpenCode Go</b></td>
   <td>detected via <code>OPENCODE_AUTH</code></td>
   <td>Go subscription — <code>滚动7%(1.7h) │ 每周25%(2.8d) │ 月98%(6.9d)</code></td>
+</tr>
+<tr>
+  <td><b>Qwen (DashScope)</b></td>
+  <td><code>https://dashscope.aliyuncs.com/compatible-mode/anthropic</code></td>
+  <td>account balance — <code>¥88.50</code></td>
 </tr>
 </table>
 
@@ -209,6 +214,7 @@ Example output:
 [DeepSeek V4 Pro] ██░░░░░░░░ 20% │ ¥13.44
 [MiniMax M3]      █▎░░░░░░░░ 13% │ 5h:17% (1.1h) │ 7d:2% (6.4d)
 [GLM 5.2]         ████▏░░░░░ 41% (1M) │ ¥88.50
+[Qwen 2.5]        ██░░░░░░░░ 20% │ ¥88.50
 ```
 
 Works with `dscode` / `mmcode` / `glmcode` / `ZCode` or any launcher that exports `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`.
@@ -245,19 +251,57 @@ See `scripts/ds-balance-cache.sh` for a full bash-based cache implementation tha
 
 <br/>
 
+## Customization
+
+### Themes
+
+Set `CC_HUD_THEME` to switch color schemes:
+
+| Value | Palette |
+|-------|---------|
+| `catppuccin` (default) | Catppuccin Mocha — green / yellow / peach / red |
+| `dracula` | Dracula — green / yellow / orange / red |
+| `nord` | Nord — aurora green / yellow / orange / red |
+
+```json
+// ~/.claude/settings.json
+{
+  "env": {
+    "CC_HUD_THEME": "dracula"
+  }
+}
+```
+
+### Compact mode
+
+Set `CC_HUD_COMPACT=1` to show only the model name and context progress bar — ideal for narrow terminals or minimal setups:
+
+```json
+// ~/.claude/settings.json
+{
+  "env": {
+    "CC_HUD_COMPACT": "1"
+  }
+}
+```
+
+Output is reduced to: `[Sonnet 4.6] ██░░░░░░░░ 20%`
+
+<br/>
+
 ## Development
 
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 110 tests (node:test)
+npm test           # 132 tests (node:test)
 ```
 
 Project layout:
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | TypeScript source — entry, render, model normalize, DeepSeek / MiniMax / GLM / OpenCode pickers |
+| `src/` | TypeScript source — entry, render, model normalize, DeepSeek / MiniMax / GLM / OpenCode Go / Qwen pickers |
 | `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
 | `commands/setup.md` | `/cc-hud:setup` slash command |
 | `tests/` | `node:test` unit tests (TS + CJS) |

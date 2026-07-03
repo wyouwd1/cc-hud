@@ -5,6 +5,19 @@ All notable changes to cc-hud are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Qwen (DashScope) balance backend with full test coverage
+- Custom color themes: `CC_HUD_THEME` (catppuccin / dracula / nord)
+- Compact mode: `CC_HUD_COMPACT=1` (model + context bar only)
+- CI/CD pipeline: GitHub Actions (ci.yml + publish.yml)
+- npm coverage script (`npm run coverage`)
+
+### Changed
+- Color system refactored into pluggable theme architecture
+- Published as `@wyouwd1/cc-hud` (scoped npm package)
+
 ## [0.6.0] — 2026-07-03
 
 ### Added
