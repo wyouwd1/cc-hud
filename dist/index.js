@@ -7,6 +7,8 @@ import { getMmxQuota } from './mmx.js';
 import { getGlmBalance } from './glm.js';
 import { getOpenCodeQuota } from './opencode.js';
 import { getQwenBalance } from './qwen.js';
+import { getMoonshotBalance } from './moonshot.js';
+import { getGroqUsage } from './groq.js';
 import { readFileSync } from 'node:fs';
 // Hard timeout — never block Claude Code
 const TIMEOUT_MS = 6000;
@@ -47,8 +49,8 @@ async function main() {
     const [ocQuota, mmQuota, extra] = await Promise.all([
         getOpenCodeQuota(), // OpenCode Go subscription — fast cache path
         getMmxQuota(), // MiniMax Token Plan — fast cache path
-        // Extra segment: explicit CC_HUD_EXTRA_FILE > Qwen balance > DeepSeek balance > GLM balance
-        (async () => readExtraFile() ?? (await getQwenBalance()) ?? (await getExtra()) ?? (await getGlmBalance()))(),
+        // Extra segment: explicit CC_HUD_EXTRA_FILE > Qwen > Moonshot > Groq > DeepSeek > GLM
+        (async () => readExtraFile() ?? (await getQwenBalance()) ?? (await getMoonshotBalance()) ?? (await getGroqUsage()) ?? (await getExtra()) ?? (await getGlmBalance()))(),
     ]);
     const renderData = {
         model: modelName.name,
