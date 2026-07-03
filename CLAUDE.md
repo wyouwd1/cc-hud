@@ -33,6 +33,40 @@ dist/                       — 编译输出（提交到仓库）
 tests/*.test.ts(.cjs)       — node:test 单元测试（render / model / mmx / glm / launcher）
 ```
 
+## 已支持的后端额度采集
+
+| 模块 | 检测方式 | 认证 | API 类型 | 输出 |
+|------|---------|------|---------|------|
+| balance.ts | `ANTHROPIC_BASE_URL` 含 `deepseek` | `ANTHROPIC_AUTH_TOKEN` | REST API | 余额字符串 ¥xx.xx |
+| glm.ts | `ANTHROPIC_BASE_URL` 含 `bigmodel.cn`/`api.z.ai` | `ANTHROPIC_AUTH_TOKEN` | REST API | 余额字符串 ¥xx.xx |
+| qwen.ts | `ANTHROPIC_BASE_URL` 含 `dashscope`/`qwen` | `ANTHROPIC_AUTH_TOKEN` | REST API | 余额字符串 ¥xx.xx |
+| moonshot.ts | `ANTHROPIC_BASE_URL` 含 `moonshot` | `ANTHROPIC_AUTH_TOKEN` | REST API | 余额字符串 ¥xx.xx |
+| groq.ts | `ANTHROPIC_BASE_URL` 含 `groq` | `ANTHROPIC_AUTH_TOKEN` | REST API | 用量数值 |
+| mmx.ts | `ANTHROPIC_BASE_URL` 含 `minimax` | `ANTHROPIC_AUTH_TOKEN` | REST API | BailianQuota 对象（3 档百分比+重置时间） |
+| opencode.ts | `OPENCODE_AUTH` 环境变量 | Cookie | 抓取 HTML 页面 | BailianQuota 对象 |
+| bailian.ts | `CC_HUD_BAILIAN_COOKIE` 环境变量 | 阿里云登录 Cookie | 控制台 POST API | BailianQuota 对象 |
+
+### 百炼 Coding Plan 经验记录
+
+**认证方式特殊：** 百炼不使用 API Key 查询额度，而是通过阿里云控制台 Cookie 认证。这与 opencode.ts 类似，但与其余 API Key 模块不同。
+
+**API 地址：**
+- 模型调用端点：`https://coding.dashscope.aliyuncs.com/apps/anthropic`（用户配在 `ANTHROPIC_BASE_URL`）
+- 额度查询端点：`https://bailian-cs.console.aliyun.com/data/api.json`（控制台 API，走 POST）
+
+**响应路径深：** 配额数据在 `data.DataV2.data.data.codingPlanInstanceInfos[0].codingPlanQuotaInfo`，需要 5 层 `.` 嵌套访问。
+
+**3 档额度映射：**
+```
+per5HourUsedQuota / per5HourTotalQuota → rollingPercent
+perWeekUsedQuota / perWeekTotalQuota   → weeklyPercent
+perBillMonthUsedQuota / ...            → monthlyPercent
+```
+
+**环境变量：** 需要用户从浏览器 F12 手动复制 `CC_HUD_BAILIAN_COOKIE` 和 `CC_HUD_BAILIAN_SEC_TOKEN`，有有效期限制。
+
+**集成注意：** 所有 3 档都走 `RenderData` 的 `fiveHourPercent`/`sevenDayPercent`/`monthlyPercent` 字段，与 OpenCode、MiniMax 共享同一优先级链。优先级：Claude 原生 > OpenCode > MiniMax > 百炼。
+
 ## 数据流
 
 ```
