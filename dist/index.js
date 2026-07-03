@@ -6,6 +6,7 @@ import { getExtra } from './balance.js';
 import { getMmxQuota } from './mmx.js';
 import { getGlmBalance } from './glm.js';
 import { getOpenCodeQuota } from './opencode.js';
+import { getBailianQuota } from './bailian.js';
 import { getQwenBalance } from './qwen.js';
 import { getMoonshotBalance } from './moonshot.js';
 import { getGroqUsage } from './groq.js';
@@ -53,9 +54,10 @@ async function main() {
         ?? await getGroqUsage()
         ?? await getExtra()
         ?? await getGlmBalance();
-    const [ocQuota, mmQuota, extra] = await Promise.all([
+    const [ocQuota, mmQuota, blQuota, extra] = await Promise.all([
         getOpenCodeQuota(),
         getMmxQuota(),
+        getBailianQuota(),
         getExtraSegment(),
     ]);
     const renderData = {
@@ -63,18 +65,18 @@ async function main() {
         modelVariant: modelName.variant,
         contextPercent,
         agents,
-        // Priority: built-in rate limits > OpenCode quota > MiniMax quota
+        // Priority: built-in rate limits > OpenCode quota > MiniMax quota > Bailian quota
         fiveHourPercent: data.rate_limits?.five_hour?.used_percentage
-            ?? ocQuota?.rollingPercent ?? mmQuota?.fiveHourUsedPct ?? null,
+            ?? ocQuota?.rollingPercent ?? mmQuota?.fiveHourUsedPct ?? blQuota?.rollingPercent ?? null,
         sevenDayPercent: data.rate_limits?.seven_day?.used_percentage
-            ?? ocQuota?.weeklyPercent ?? mmQuota?.sevenDayUsedPct ?? null,
+            ?? ocQuota?.weeklyPercent ?? mmQuota?.sevenDayUsedPct ?? blQuota?.weeklyPercent ?? null,
         fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at)
-            ?? ocQuota?.rollingResetsAt ?? mmQuota?.fiveHourResetsAt ?? null,
+            ?? ocQuota?.rollingResetsAt ?? mmQuota?.fiveHourResetsAt ?? blQuota?.rollingResetsAt ?? null,
         sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at)
-            ?? ocQuota?.weeklyResetsAt ?? mmQuota?.sevenDayResetsAt ?? null,
+            ?? ocQuota?.weeklyResetsAt ?? mmQuota?.sevenDayResetsAt ?? blQuota?.weeklyResetsAt ?? null,
         extra,
-        monthlyPercent: ocQuota?.monthlyPercent ?? null,
-        monthlyResetsAt: ocQuota?.monthlyResetsAt ?? null,
+        monthlyPercent: ocQuota?.monthlyPercent ?? blQuota?.monthlyPercent ?? null,
+        monthlyResetsAt: ocQuota?.monthlyResetsAt ?? blQuota?.monthlyResetsAt ?? null,
     };
     console.log(render(renderData));
 }
