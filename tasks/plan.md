@@ -1,355 +1,278 @@
-# Implementation Plan: cc-hud 独立维护
+# Implementation Plan: 阿里云百炼 Coding Plan 额度适配
 
 ## 概述
 
-接管 cc-hud 的独立维护：解绑上游 → 合并特性分支 → 清理分支 → 更新所有权 → 
-添加测试 → 发布 v0.6.0 → （未来）迁移组织账号 + 上架插件市场。
+为 cc-hud 新增阿里云百炼 Coding Plan 套餐的 3 档额度采集与显示，类似 opencode.ts 的模式。
 
-## 架构决策
+## API 数据结构（已通过 curl 验证）
 
-| 决策 | 理由 |
-|------|------|
-| 合并 feat/opencode-quota → main（fast-forward） | 特性分支仅超前 main 4 commits，无冲突风险 |
-| 删除所有特性分支，仅保留 main | 简化分支结构，每特性开新分支 |
-| 版本号从 v0.6.0 起跳 | 脱离上游后第一个独立版本 |
-| CHANGELOG.md + GitHub Releases 双轨 | 市场展示 + 用户可查 |
-| 组织迁移是最后一步 | 避免迁移过程中断发布 |
+```json
+{
+  "code": "200",
+  "data": {
+    "DataV2": {
+      "data": {
+        "data": {
+          "codingPlanInstanceInfos": [{
+            "instanceId": "sfm_codingplan_public_cn-xxx",
+            "instanceName": "Coding Plan Pro",
+            "instanceType": "pro",
+            "chargeType": "MONTH",
+            "remainingDays": 6,
+            "status": "VALID",
+            "autoRenewFlag": true,
+            "codingPlanQuotaInfo": {
+              "per5HourUsedQuota": 0,
+              "per5HourTotalQuota": 6000,
+              "per5HourQuotaNextRefreshTime": 1783064808000,
+
+              "perWeekUsedQuota": 258,
+              "perWeekTotalQuota": 45000,
+              "perWeekQuotaNextRefreshTime": 1783267200000,
+
+              "perBillMonthUsedQuota": 2643,
+              "perBillMonthTotalQuota": 90000,
+              "perBillMonthQuotaNextRefreshTime": 1783612800000
+            }
+          }]
+        }
+      }
+    }
+  }
+}
+```
+
+## 3 档额度映射
+
+| 档位 | OpenCode 对应 | Bailian 字段 | 说明 |
+|------|---------------|-------------|------|
+| 5小时 | rollingPercent/ResetsAt | per5Hour | 每5小时滚动刷新 |
+| 每周 | weeklyPercent/ResetsAt | perWeek | 每周刷新 |
+| 每月 | monthlyPercent/ResetsAt | perBillMonth | 账单月刷新 |
+
+## 环境变量
+
+| 变量 | 说明 | 必须 |
+|------|------|------|
+| `CC_HUD_BAILIAN_COOKIE` | 完整阿里云登录 Cookie 字符串 | 是 |
+| `CC_HUD_BAILIAN_SEC_TOKEN` | sec_token | 是 |
+| `CC_HUD_BAILIAN_REGION` | 区域，默认 `cn-beijing` | 否 |
+| `ANTHROPIC_AUTH_TOKEN` | 可选，用于检测是否配置了百炼后端 | 否 |
+
+**检测条件**: `CC_HUD_BAILIAN_COOKIE` 存在时激活（类似 opencode.ts 的 `OPENCODE_AUTH`）。
 
 ## 任务列表
 
 ---
 
-### Phase 1: 解绑与合并
+### Phase 1: 核心模块
 
-#### Task 1: 解绑上游 remote
+#### Task 1: 新建 `src/bailian.ts`
 
-**Description:** 删除 `upstream` remote，确保与原作者仓库完全脱离。
+**Description:** 编写百炼 Coding Plan 额度采集模块，遵循 mmx.ts / opencode.ts 风格。
+
+**类型定义:**
+```typescript
+export interface BailianQuota {
+  rollingPercent: number;    // 5h 用量百分比
+  rollingResetsAt: number;   // 5h 重置时间戳
+  weeklyPercent: number;     // 每周用量百分比
+  weeklyResetsAt: number;    // 每周重置时间戳
+  monthlyPercent: number;    // 月用量百分比
+  monthlyResetsAt: number;   // 月重置时间戳
+}
+```
+
+**函数设计:**
+
+| 函数 | 可见性 | 职责 |
+|------|--------|------|
+| `cookie()` | 内部 | 读取 `CC_HUD_BAILIAN_COOKIE` |
+| `secToken()` | 内部 | 读取 `CC_HUD_BAILIAN_SEC_TOKEN` |
+| `region()` | 内部 | 读取 `CC_HUD_BAILIAN_REGION`，默认 `cn-beijing` |
+| `isBailian()` | 内部 | 检测 `CC_HUD_BAILIAN_COOKIE` 是否存在 |
+| `fetchQuota()` | 内部 | POST 调用 console API，返回解析后的配额 |
+| `aggregatePlan(data)` | 内部 | 从 API 响应中提取 3 档额度，计算百分比 |
+| `getBailianQuota()` | 导出 | 先读缓存，命中返回；未命中 fetch |
+
+**缓存:**
+- 缓存键: `bailian-quota`
+- TTL: `5 * 60 * 1000`（与 mmx.ts 一致）
+- 结构: `{ payload: BailianQuota, ts: number }`
+
+**代码结构**（参考 opencode.ts ~100 行、mmx.ts ~70 行，预计 ~80 行）:
+
+```typescript
+import { readCached, writeCached, fetchWithTimeout, TTL } from './cache.js';
+
+const HOST = 'https://bailian-cs.console.aliyun.com/data/api.json';
+
+export interface BailianQuota { ... }
+
+function isBailian(): boolean {
+  return !!process.env.CC_HUD_BAILIAN_COOKIE;
+}
+
+function cookie(): string { return process.env.CC_HUD_BAILIAN_COOKIE!; }
+function secToken(): string | null { return process.env.CC_HUD_BAILIAN_SEC_TOKEN ?? null; }
+function region(): string { return process.env.CC_HUD_BAILIAN_REGION ?? 'cn-beijing'; }
+
+function aggregatePlan(info: CodingPlanQuotaInfo): BailianQuota {
+  const now = Date.now();
+  return {
+    rollingPercent: Math.round((info.per5HourUsedQuota / info.per5HourTotalQuota) * 100),
+    rollingResetsAt: info.per5HourQuotaNextRefreshTime,
+    weeklyPercent: Math.round((info.perWeekUsedQuota / info.perWeekTotalQuota) * 100),
+    weeklyResetsAt: info.perWeekQuotaNextRefreshTime,
+    monthlyPercent: Math.round((info.perBillMonthUsedQuota / info.perBillMonthTotalQuota) * 100),
+    monthlyResetsAt: info.perBillMonthQuotaNextRefreshTime,
+  };
+}
+
+async function fetchQuota(): Promise<BailianQuota | null> { ... }
+
+export async function getBailianQuota(): Promise<BailianQuota | null> { ... }
+```
 
 **Acceptance criteria:**
-- [ ] `git remote -v` 不再显示 upstream
-- [ ] 本地所有 upstream refs 清理干净
+- [ ] `isBailian()` 检测 `CC_HUD_BAILIAN_COOKIE` 存在时返回 true
+- [ ] `aggregatePlan()` 正确计算 3 档百分比
+- [ ] `fetchQuota()` 成功调用 console API 并返回结构化数据
+- [ ] 未设置 Cookie 时静默返回 null
+- [ ] 网络错误时返回过期缓存 / null
 
-**Verification:**
-- [ ] `git remote -v` 确认只有 origin
+**Files touched:**
+- `src/bailian.ts`（新增）
 
-**Dependencies:** 无
-
-**Files likely touched:** 无
-
-**Estimated scope:** XS (1 操作)
+**Estimated scope:** M (~80 行)
 
 ---
 
-#### Task 2: 合并 feat/opencode-quota → main
+### Phase 2: 集成与渲染
 
-**Description:** 切换到 main，合并 `feat/opencode-quota`。该分支包含 OpenCode Go 订阅配额显示的核心实现（新增 src/opencode.ts，修改 src/index.ts、src/render.ts、src/types.ts，以及对应的编译产物）。
+#### Task 2: 集成到 `src/index.ts`
+
+**Description:** 将 bailian 导入并在 `Promise.all` 中并行获取，映射到 `RenderData`。
+
+**改动:**
+
+1. 顶部导入：`import { getBailianQuota, type BailianQuota } from './bailian.js';`
+2. `Promise.all` 中新增 `getBailianQuota()`
+3. 优先级链：
+   - `fiveHourPercent`: Claude 原生 > OpenCode > MiniMax > **百炼**
+   - `sevenDayPercent`: Claude 原生 > OpenCode > MiniMax > **百炼**
+   - `monthlyPercent`: OpenCode > **百炼**
+
+```typescript
+const [ocQuota, mmQuota, blQuota, extra] = await Promise.all([
+  getOpenCodeQuota(),
+  getMmxQuota(),
+  getBailianQuota(),  // 新增
+  getExtraSegment(),
+]);
+
+fiveHourPercent: data.rate_limits?.five_hour?.used_percentage
+  ?? ocQuota?.rollingPercent ?? mmQuota?.fiveHourUsedPct ?? blQuota?.rollingPercent ?? null,
+sevenDayPercent: data.rate_limits?.seven_day?.used_percentage
+  ?? ocQuota?.weeklyPercent ?? mmQuota?.sevenDayUsedPct ?? blQuota?.weeklyPercent ?? null,
+// 月额度: OpenCode 优先，百炼次之
+monthlyPercent: ocQuota?.monthlyPercent ?? blQuota?.monthlyPercent ?? null,
+monthlyResetsAt: ocQuota?.monthlyResetsAt ?? blQuota?.monthlyResetsAt ?? null,
+```
 
 **Acceptance criteria:**
-- [ ] main 包含 feat/opencode-quota 的所有 4 个 commit
-- [ ] `git log main --oneline` 显示 f8e8caf 在历史中
-
-**Verification:**
-- [ ] `git diff main..feat/opencode-quota` 输出为空（已合并无差异）
-
-**Dependencies:** Task 1
-
-**Files likely touched:** 无（纯 git 操作）
-
-**Estimated scope:** XS
-
----
-
-#### Task 3: 安装依赖 + 构建验证
-
-**Description:** 在合并后的 main 上执行 `npm install` 和 `npm run build`，确保 TypeScript 编译通过，dist/ 产物与 src/ 一致。
-
-**Acceptance criteria:**
-- [ ] `npm run build` 退出码 0
-- [ ] `dist/opencode.js` 存在且非空
-
-**Verification:**
-- [ ] Build succeeds: `npm run build`
-
-**Dependencies:** Task 2
-
-**Files likely touched:** 无
-
-**Estimated scope:** XS
-
----
-
-#### Checkpoint: Phase 1
-- [ ] `git remote -v` 仅显示 origin
-- [ ] main 已包含 OpenCode 特性
 - [ ] `npm run build` 通过
-- [ ] 确认后继续 Phase 2
+- [ ] 百炼数据显示在 `5h` / `7d` / `mo` 对应的位置
+- [ ] 未配置百炼时不影响其他后端
+- [ ] 百炼数据优先级正确（低于 OpenCode 和 MiniMax）
+
+**Files touched:**
+- `src/index.ts`
+
+**Estimated scope:** XS（~10 行改动）
 
 ---
 
-### Phase 2: 清理与配置
+#### Task 3: 渲染倒计时兼容
 
-#### Task 4: 清理本地和远程分支
+**Description:** 验证 `render.ts` 的 `formatCountdown` 函数对百炼的 3 档时间戳是否渲染正确。
 
-**Description:** 删除已合并的特性分支。本地删除 `feat/opencode-quota` 和 `docs/cc-hud-extra-file-windows`。远程删除 `origin/feat/opencode-quota` 和 `origin/docs/cc-hud-extra-file-windows`。
+百炼时间戳都是毫秒级 Unix 时间戳（`1783064808000`），与 `mmx.ts` 的 `resetsAt` 格式一致。`index.ts` 中的 `toMs()` 转换函数已处理毫秒/秒兼容，无需额外改动。
+
+但仍需确认 `RenderData` 类型定义中 `monthlyPercent` / `monthlyResetsAt` 字段在现有 render 中正确显示。
 
 **Acceptance criteria:**
-- [ ] `git branch` 仅显示 main
-- [ ] `git branch -r` 仅显示 `origin/main`（和 `origin/HEAD`）
+- [ ] 时间戳渲染出正确的倒计时（天/小时/分钟）
+- [ ] `RenderData` 字段名与现有 render 消费一致
 
-**Verification:**
-- [ ] `git branch -a` 确认清理干净
+**Files touched:**
+- 无代码修改（验证即可）
 
-**Dependencies:** Task 2
-
-**Files likely touched:** 无
-
-**Estimated scope:** XS
+**Estimated scope:** XS（纯验证）
 
 ---
 
-#### Task 5: 更新插件清单所有权
+### Phase 3: 测试
 
-**Description:** 修改 `.claude-plugin/plugin.json` 和 `.claude-plugin/marketplace.json`，将 owner 从 `Water` 改为你的信息，更新 repository URL 指向你的 fork。
+#### Task 4: 编写单元测试 `tests/bailian.test.ts`
 
-**Changes needed:**
-- `plugin.json`: `author.name` → `熊崽`、`homepage` → `https://github.com/wyouwd1/cc-hud`、`repository` → same
-- `marketplace.json`: `owner.name` → `熊崽`
+**Description:** 参考 `tests/opencode.test.ts` 和 `tests/mmx.test.ts` 的测试模式，覆盖以下维度：
 
-**Acceptance criteria:**
-- [ ] plugin.json 不再包含 Water
-- [ ] marketplace.json 不再包含 Water
-- [ ] 所有 URL 指向 `github.com/wyouwd1/cc-hud`
-
-**Verification:**
-- [ ] Read plugin.json 和 marketplace.json 确认
-
-**Dependencies:** 无
-
-**Files likely touched:**
-- `.claude-plugin/plugin.json`
-- `.claude-plugin/marketplace.json`
-
-**Estimated scope:** XS
-
----
-
-#### Task 6: 创建 CHANGELOG.md
-
-**Description:** 创建 Keep a Changelog 格式的 CHANGELOG.md，汇总 v0.1.0 到 v0.5.1 的发布历史，以及 v0.6.0 的新变更。从 git log 提取每个版本的内容。
-
-**Acceptance criteria:**
-- [ ] CHANGELOG.md 位于项目根目录
-- [ ] 格式遵循 Keep a Changelog（反向时间序）
-- [ ] 包含所有 17 个 tag 版本
-- [ ] v0.6.0 入口包含 OpenCode 配额显示、独立维护切换
-
-**Verification:**
-- [ ] 文件可读，格式正确
-
-**Dependencies:** 无（需要了解 git log，但不依赖代码修改）
-
-**Files likely touched:**
-- `CHANGELOG.md`
-
-**Estimated scope:** S
-
----
-
-#### Checkpoint: Phase 2
-- [ ] 只剩 main 分支
-- [ ] 插件信息归你所有
-- [ ] CHANGELOG.md 已建立
-- [ ] 确认后继续 Phase 3
-
----
-
-### Phase 3: 测试与文档
-
-#### Task 7: 编写 OpenCode 单元测试
-
-**Description:** 参考 `tests/mmx.test.ts` 的测试模式（隔离检测、HTML 解析、错误降级、缓存），为 `src/opencode.ts` 编写完整测试。覆盖以下维度：
-- **隔离检测**: 无 OPENCODE_AUTH 时返回 null，不发起 fetch
-- **HTML 解析**: 真实形状的 HTML 片段解析出正确的 rolling/weekly/monthly 百分比和重置时间
-- **null 值跳过**: monthlyUsage:null 的场景
+- **隔离检测**: 无 `CC_HUD_BAILIAN_COOKIE` 时返回 null，不发起 fetch
+- **API 解析**: 使用实际响应中的 `codingPlanQuotaInfo` 结构，验证百分比计算正确
+  - `per5HourUsedQuota: 0, total: 6000` → `rollingPercent: 0`
+  - `perWeekUsedQuota: 258, total: 45000` → `weeklyPercent: 1` (0.57% → round → 1)
+  - `perBillMonthUsedQuota: 2643, total: 90000` → `monthlyPercent: 3` (2.94% → round → 3)
+- **边界 case**:
+  - 用量为 0
+  - 用量等于总额度（100%）
+  - 没有 `codingPlanInstanceInfos`（空数组）
 - **错误降级**: HTTP 错误、网络超时、解析失败时返回 null
 - **缓存**: 5 分钟内命中缓存，失败时回退 stale cache
 
+测试框架使用 `node:test` + `node:assert/strict`，mock `globalThis.fetch`，临时 HOME 隔离缓存。
+
 **Acceptance criteria:**
-- [ ] `tests/opencode.test.ts` 存在
+- [ ] `tests/bailian.test.ts` 存在
 - [ ] 所有测试用例通过
-- [ ] 测试覆盖 4 个维度（隔离、解析、降级、缓存）
+- [ ] 覆盖隔离、解析、降级、缓存 4 个维度
 
-**Verification:**
-- [ ] `node --test tests/opencode.test.ts` 全部通过
+**Files touched:**
+- `tests/bailian.test.ts`（新增）
 
-**Dependencies:** Task 3（需要编译后的 dist/opencode.js）
-
-**Files likely touched:**
-- `tests/opencode.test.ts`
-
-**Estimated scope:** M (~150 行测试代码)
+**Estimated scope:** M（~180 行）
 
 ---
 
-#### Task 8: 完整测试套件验证
+#### Task 5: 完整测试套件验证
 
-**Description:** 运行全部测试（model、render、mmx、glm、opencode、launcher），确保所有测试通过。
+**Description:** 运行全部测试，确保新增 bailian 测试不破坏现有测试。
 
 **Acceptance criteria:**
 - [ ] `npm test` 退出码 0
-- [ ] 所有测试用例通过
+- [ ] 全部测试用例通过
 
-**Verification:**
-- [ ] `npm test` 全部通过
-
-**Dependencies:** Task 7
-
-**Files likely touched:** 无
+**Files touched:**
+- 无
 
 **Estimated scope:** XS
 
 ---
 
-#### Task 9: 更新 README
+### Phase 4: 文档
 
-**Description:** 更新 README 中的维护信息：修改作者、仓库链接、安装来源为你的 fork。在文档中注明独立维护状态。
+#### Task 6: 更新 README 和 setup 文档
 
-**Acceptance criteria:**
-- [ ] README 中的作者信息更新
-- [ ] README 中的仓库链接指向你的 fork
-- [ ] 提及独立维护状态
+**Description:** 在 README 中新增百炼 Coding Plan 配置说明，更新 `commands/setup.md`。
 
-**Verification:**
-- [ ] 阅读 README 确认
+**文档内容:**
+1. 环境变量说明（`CC_HUD_BAILIAN_COOKIE`、`CC_HUD_BAILIAN_SEC_TOKEN`、`CC_HUD_BAILIAN_REGION`）
+2. 获取 Cookie 的方法指引
+3. 状态栏显示的效果示例（5h / 7d / mo 百分比）
 
-**Dependencies:** 无
-
-**Files likely touched:**
-- `README.md`
-
-**Estimated scope:** XS
-
----
-
-#### Checkpoint: Phase 3
-- [ ] `npm test` 全部通过（含新 OpenCode 测试）
-- [ ] README 已更新
-- [ ] 确认后进入 Phase 4 发布
-
----
-
-### Phase 4: 发布 v0.6.0
-
-#### Task 10: 版本 bump + 打 tag
-
-**Description:** 使用 `npm version` 将版本号从 0.5.1 升级到 0.6.0，自动更新 package.json 并创建 annotated git tag。同步更新 plugin.json 和 marketplace.json 中的 version 字段。
-
-**Acceptance criteria:**
-- [ ] `package.json` 中 version = "0.6.0"
-- [ ] `plugin.json` 中 version = "0.6.0"
-- [ ] `marketplace.json` 中 metadata.version = "0.6.0"
-- [ ] `git tag -l` 包含 v0.6.0
-
-**Verification:**
-- [ ] `npm version` dry-run 确认一切正常后执行
-
-**Dependencies:** Task 8
-
-**Files likely touched:**
-- `package.json`
-- `package-lock.json`
-- `.claude-plugin/plugin.json`
-- `.claude-plugin/marketplace.json`
-
-**Estimated scope:** XS
-
----
-
-#### Task 11: 推送到 GitHub
-
-**Description:** 将 main 分支和 v0.6.0 tag 推送到 origin。
-
-**Acceptance criteria:**
-- [ ] `git push origin main` 成功
-- [ ] `git push origin v0.6.0` 成功
-
-**Verification:**
-- [ ] GitHub 上可见新的提交和 tag
-
-**Dependencies:** Task 10
-
-**Files likely touched:** 无
-
-**Estimated scope:** XS
-
----
-
-#### Task 12: 创建 GitHub Release
-
-**Description:** 使用 `gh release create v0.6.0` 创建 Release，引用 CHANGELOG.md 中的 v0.6.0 内容。
-
-**Acceptance criteria:**
-- [ ] GitHub 上 可见 Release v0.6.0
-- [ ] Release 描述与 CHANGELOG 一致
-
-**Verification:**
-- [ ] `gh release view v0.6.0` 可查看
-
-**Dependencies:** Task 11
-
-**Files likely touched:** 无
-
-**Estimated scope:** XS
-
----
-
-#### Checkpoint: Phase 4
-- [ ] GitHub 上 main 分支最新
-- [ ] v0.6.0 tag 和 Release 已发布
-- [ ] 独立维护管线建立完毕
-
----
-
-### Phase 5 (Future): 组织迁移
-
-#### Task 13: 迁移仓库到 GitHub 组织
-
-**Description:** 在 GitHub 创建组织账号，将 repo 从 `wyouwd1/cc-hud` 迁移到组织下。更新所有 remote URL。
-
-**Acceptance criteria:**
-- [ ] 仓库在组织账号下
-- [ ] 本地 remote URL 指向新地址
-- [ ] 旧仓库有 README 跳转提示
-
-**Verification:**
-- [ ] `git remote -v` 指向组织 repo
-
-**Dependencies:** Task 12
-
-**Files likely touched:**
-- `.claude-plugin/plugin.json`
-- `.claude-plugin/marketplace.json`
+**Files touched:**
 - `README.md`
 - `commands/setup.md`
-
-**Estimated scope:** M
-
----
-
-#### Task 14: 提交 Claude Code 插件市场审核
-
-**Description:** 在组织迁移后，将 cc-hud 提交到 Claude Code 插件市场。确保 plugin.json 和 marketplace.json 的组织信息正确。
-
-**Acceptance criteria:**
-- [ ] 插件在 Claude Code 市场可见
-- [ ] `claude plugins:install cc-hud` 可用
-
-**Verification:**
-- [ ] 在市场搜索到 cc-hud
-
-**Dependencies:** Task 13
-
-**Files likely touched:** 无
 
 **Estimated scope:** S
 
@@ -359,31 +282,25 @@
 
 ```mermaid
 graph TD
-    T1[Task 1: 解绑上游] --> T2[Task 2: 合并特性分支]
-    T2 --> T3[Task 3: 构建验证]
-    T3 --> T4[Task 4: 清理分支]
-    T2 --> T5[Task 5: 更新插件清单]
-    T2 --> T6[Task 6: 创建 CHANGELOG]
-    T3 --> T7[Task 7: OpenCode 测试]
-    T7 --> T8[Task 8: 完整测试]
-    T5 --> T10[Task 10: 版本 bump]
-    T6 --> T10
-    T8 --> T10
-    T10 --> T11[Task 11: 推送到 GitHub]
-    T11 --> T12[Task 12: GitHub Release]
-    T12 --> T13[Task 13: 组织迁移]
-    T13 --> T14[Task 14: 市场上架]
+    T1[Task 1: bailian.ts 核心模块] --> T2[Task 2: 集成到 index.ts]
+    T1 --> T3[Task 3: 渲染兼容验证]
+    T1 --> T4[Task 4: 单元测试]
+    T2 --> T5[Task 5: 完整测试验证]
+    T3 --> T5
+    T4 --> T5
+    T5 --> T6[Task 6: 文档更新]
 ```
 
 ## 风险与缓解
 
 | 风险 | 影响 | 缓解 |
 |------|------|------|
-| 合并冲突 | Medium | feat 分支仅 4 commits 超前，diff 干净，冲突概率极低 |
-| OpenCode HTML 结构变化 | Medium | 测试覆盖典型 HTML 结构，解析失败静默降级 |
-| GitHub Release 权限不足 | Low | 确认 gh auth status |
-| 市场审核不通过 | Low | 先独立维护，条件成熟后再提交 |
+| Cookie 过期 | 额度不显示 | 静默降级；文档提示定期更新 Cookie |
+| `sec_token` 变化 | API 请求失败 | 先验证当前 `_v=undefined` 是否始终可用；必要时从页面提取 |
+| 控制台 API 改版 | 响应结构变化 | 独立模块，try-catch 包裹；修改范围小 |
+| Cookie 含敏感信息 | 安全风险 | 仅通过环境变量传入，不写日志/不持久化 |
 
 ## 开放问题
 
-- 无（所有决策已在 spec 中确认）
+- `sec_token` 有效期多长？是否需要自动刷新机制？
+- 是否需要支持从百炼页面自动提取 Cookie（如通过浏览器 CDP）？

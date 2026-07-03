@@ -1,177 +1,144 @@
-# Spec: cc-hud 独立维护方案
+# SPEC: 阿里云百炼 Coding Plan 额度适配
 
-## Objective
+## 1. 目标
 
-接管 cc-hud 的独立维护。原作者（Water/WaterTian）已停止维护，需要：
+为 cc-hud 新增阿里云百炼（Bailian）「Coding Plan（编码计划）」套餐的额度采集与显示，遵循现有后端额度模块的统一模式。
 
-1. **审计仓库全貌** — 所有分支、提交、标签、贡献者
-2. **清理分支结构** — 合并有价值的特性分支，删除临时分支
-3. **建立自主维护管线** — 脱离上游，独立发布版本
-4. **为未来上架插件市场做准备**
+## 2. 背景
 
-## 审计结果
+cc-hud 已支持 7 个后端额度/余额采集模块：
 
-### 远程仓库
+| 模块 | 检测条件 (`ANTHROPIC_BASE_URL`) | 认证方式 | 输出类型 |
+|------|-------------------------------|---------|---------|
+| qwen.ts | `dashscope` / `qwen` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 余额字符串 (¥xx.xx) |
+| balance.ts (DeepSeek) | `deepseek` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 余额字符串 |
+| glm.ts (GLM) | `bigmodel.cn` / `api.z.ai` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 余额字符串 |
+| moonshot.ts | `moonshot` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 余额字符串 |
+| groq.ts | `groq` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 用量数值 |
+| mmx.ts (MiniMax) | `minimax` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 配额对象 (5h/7d) |
+| opencode.ts | `OPENCODE_AUTH` env | 独立 Cookie | 配额对象 (滚动/每周/每月) |
 
-| 远程 | URL | 角色 |
-|------|-----|------|
-| `origin` | `git@github.com:wyouwd1/cc-hud.git` | 主仓库（后续迁移到组织账号） |
-| ~~`upstream`~~ | ~~`https://github.com/WaterTian/cc-hud.git`~~ | ❌ 完全解绑 |
+## 3. 百炼 Coding Plan 接入点
 
-### 分支一览
-
-| 分支 | 基于 | 超前/落后 | 说明 |
-|------|------|-----------|------|
-| `main` | `v0.5.1` | = `upstream/main` | 与上游同步 |
-| `feat/opencode-quota` | `v0.5.1` +4 commits | 超前 main 4 commits | OpenCode 订阅配额显示（核心特性） |
-| `docs/cc-hud-extra-file-windows` | `v0.5.1` | 已合并入 feat/opencode-quota | Windows 路径文档 |
-
-### 标签（17 个）
-
-从 `v0.1.0` 到 `v0.5.1`，覆盖整个发布历史。所有标签均在 `main` 上。
-
-### 贡献者
-
-| 作者 | 邮箱 | 角色 |
-|------|------|------|
-| Water | changewater@qq.com | 原作者（已停止维护） |
-| wyoud1 | wyoud1@qq.com | 你的另一个账号 |
-| 熊崽 | wyoud1@qq.com | 你本人 |
-
-### 特性分支的核心变更
-
-`feat/opencode-quota` vs `main`（+409 / -51 行，9 个文件）：
+用户配置 Claude Code 使用百炼 Coding Plan 时，设置：
 
 ```
-新增: src/opencode.ts     — OpenCode Go 订阅配额采集
-新增: dist/opencode.js    — 编译产物
-修改: src/index.ts        — 集成 OpenCode 数据流
-修改: src/render.ts       — 渲染 OpenCode 配额信息
-修改: src/types.ts        — 类型扩展
-修改: dist/index.js       — 编译产物
-修改: dist/render.js      — 编译产物
-修改: README.md           — 文档
-修改: package-lock.json   — 依赖锁
+ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic
+ANTHROPIC_AUTH_TOKEN=sk-<dashscope-api-key>
 ```
 
-## 方案
+使用的 API 兼容端点：
+- OpenAI 兼容：`https://coding.dashscope.aliyuncs.com/v1`
+- Anthropic 兼容：`https://coding.dashscope.aliyuncs.com/apps/anthropic`
 
-### 1. 分支清理策略
+Coding Plan 本质是 DashScope（通义千问）平台上的预付费配额套餐，额度查询可直接使用 DashScope 标准账单 API。
 
-| 操作 | 分支 | 理由 |
-|------|------|------|
-| **合并 → 删除** | `feat/opencode-quota` → `main` | 核心特性，值得合入主线 |
-| **合并 → 删除** | `docs/cc-hud-extra-file-windows` → `main` | 文档，已合并入 feat 分支 |
-| **保留** | `main` | 稳定发布线 |
-| **可选删除** | `origin/feat/opencode-quota`、`origin/docs/cc-hud-extra-file-windows` | 远程清理 |
-| **删除** | `upstream/main` | 完全解绑 |
+## 4. 检测与认证
 
-### 2. 版本策略
+| 字段 | 方式 |
+|------|------|
+| 检测 | `ANTHROPIC_BASE_URL` 包含 `coding.dashscope.aliyuncs.com` |
+| API Key | `ANTHROPIC_AUTH_TOKEN`（DashScope API Key） |
+| 额度 API | `GET https://dashscope.aliyuncs.com/api/v1/billing/query`（同 qwen.ts） |
 
-脱离上游后，版本号从 `v0.6.0` 起跳（基于 v0.5.1 + OpenCode 特性）：
+与 qwen.ts 的关系：
+- qwen.ts 检测 `dashscope` / `qwen`（覆盖通用 DashScope 用户）
+- bailian.ts 检测 `coding.dashscope.aliyuncs.com`（仅 Coding Plan 用户）
+- 两者调用相同的 billing endpoint
+- 优先级：bailian.ts 更具体，应排在 qwen.ts 之前
 
-```
-v0.6.0  — 合并 OpenCode 配额显示 + 分支清理
-v0.6.x  — 后续 bug 修复
-v0.7.0  — 新特性
-v1.0.0  — 稳定版（上架市场条件成熟时）
-```
+## 5. 模块设计
 
-### 3. 发布流程
+### 文件：`src/bailian.ts`
 
-```
-开发 → 版本 bump → 编译 → 打 tag → GitHub Releases → （未来）插件市场
-```
+遵循最简模式（参考 qwen.ts，33 行）：
 
-- 不再往 `upstream` 提交 PR
-- `origin/main` 作为唯一 truth source
-- 每个版本打 annotated tag + GitHub Release
+```typescript
+import { readCached, writeCached, fetchWithTimeout, extractBalance, TTL } from './cache.js';
 
-### 4. 插件市场
+function isBailianCoding(): boolean {
+  const base = process.env.ANTHROPIC_BASE_URL;
+  return !!base && base.includes('coding.dashscope.aliyuncs.com');
+}
 
-目前 cc-hud 已在 Claude Code 插件市场注册（有 `marketplace.json`），可被 `claude plugins:install cc-hud` 发现。后续上架需确保：
+export async function getBailianBalance(): Promise<string | null> {
+  if (!isBailianCoding()) return null;
+  const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
+  if (!apiKey) return null;
 
-- `marketplace.json` / `plugin.json` 中的 `owner` 字段改为你的 GitHub 账号
-- 更新 `repository` URL 指向你的 fork
-- 在 Claude Code 插件市场提交审核
+  const cached = readCached<{ balance: string; ts: number }>('bailian-balance');
+  if (cached && Date.now() - cached.ts < TTL) return cached.balance;
 
-## Commands
+  try {
+    const resp = await fetchWithTimeout('https://dashscope.aliyuncs.com/api/v1/billing/query', {
+      headers: { Authorization: `Bearer ${apiKey}`, accept: 'application/json' },
+    });
+    if (resp.ok) {
+      const balance = extractBalance(await resp.json());
+      if (balance) {
+        writeCached('bailian-balance', { balance, ts: Date.now() });
+        return balance;
+      }
+    }
+  } catch {}
 
-```bash
-# 审计
-git log --all --oneline --graph --decorate
-git branch -a
-git tag -l
-
-# 合并特性分支
-git checkout main
-git merge feat/opencode-quota
-
-# 版本发布
-npm version 0.6.0 -m "chore: bump to v%s — OpenCode quota display"
-git push origin main --tags
-
-# 构建
-npm run build        # tsc 编译
-npm test             # node --test
+  return cached?.balance ?? null;
+}
 ```
 
-## Project Structure
+### 与 qwen.ts 的差异
 
+| 维度 | qwen.ts | bailian.ts |
+|------|---------|------------|
+| 检测条件 | `dashscope` / `qwen` | `coding.dashscope.aliyuncs.com` |
+| API 端点 | 同上 | 同上 (`dashscope.aliyuncs.com/api/v1/billing/query`) |
+| 缓存键 | `qwen-balance` | `bailian-balance` |
+| 优先级 | 通用 DashScope | 仅 Coding Plan（更具体） |
+
+## 6. 集成到 index.ts
+
+在 `getExtraSegment()` 优先级链中，bailian.ts 应**排在 qwen.ts 之前**（因为 `coding.dashscope.aliyuncs.com` 也包含 `dashscope`，bailian 更具体先匹配）：
+
+```typescript
+const getExtraSegment = async (): Promise<string | null> =>
+  readExtraFile()
+    ?? await getBailianBalance()    // 新增，在 qwen 之前
+    ?? await getQwenBalance()
+    ?? await getMoonshotBalance()
+    ?? await getGroqUsage()
+    ?? await getExtra()
+    ?? await getGlmBalance();
 ```
-.                      # 保持现有结构不变
-├── src/               # TypeScript 源码
-├── dist/              # 编译产物（提交到仓库）
-├── .claude-plugin/    # 插件清单
-├── commands/          # setup 文档
-├── scripts/           # launcher
-└── tests/             # 测试
-```
 
-## Code Style
+为什么排 qwen 前面：如果用户用 `ANTHROPIC_BASE_URL=coding.dashscope.aliyuncs.com`，这个 URL 同时包含 `dashscope`，qwen.ts 的 `isQwen()` 也会返回 true。但 bailian.ts 是专门为 Coding Plan 优化的，应该优先匹配。
 
-保持现有风格不变（见 `CLAUDE.md`）：
-- TypeScript strict mode
-- ESM + ES2022
-- 零外部依赖
-- Catppuccin Mocha 配色
-- 不可变数据模式
-- 中文注释，英文代码
+## 7. 实施步骤
 
-## Testing Strategy
+### Step 1：新建 `src/bailian.ts`
+- 30 行代码，风格与 qwen.ts 完全一致
+- 检测条件 `coding.dashscope.aliyuncs.com`
+- 缓存键 `bailian-balance`
 
-- `node --test` 内置测试运行器
-- 现有 render / model / mmx / glm / launcher 测试
-- 为 OpenCode 新增对应测试
-- 保持 80%+ 覆盖率
+### Step 2：集成到 `index.ts`
+- 导入 `getBailianBalance`
+- 加入 `getExtraSegment()` 链（qwen 前面）
 
-## Boundaries
+### Step 3：单元测试
+- 检测函数测试（`coding.dashscope.aliyuncs.com` 返回 true，不含的返回 false）
+- 余额提取测试（使用模拟响应数据，复用 `cache.ts` 的 `extractBalance`）
+- 优先级测试（bailian 在 qwen 之前匹配）
 
-### Always
-- 合入 main 前必须通过 `npm test`
-- 版本发布必须打 annotated tag
-- 每个版本写 CHANGELOG / Release Notes
-- 编译 `dist/` 提交到仓库（保持与插件市场兼容）
+### Step 4：编译验证
+- `npm run build` 通过
+- `npm test` 通过
 
-### Ask first
-- 引入外部依赖
-- 修改插件清单结构
-- 删除上游保留的参考分支
+## 8. 验收标准
 
-### Never
-- 往 `upstream` 提交任何内容（已完全解绑）
-- 删除 Git 历史（rebase、force push 到 main）
-- 提交未编译的版本
-
-## Success Criteria
-
-- [ ] `feat/opencode-quota` 合入 `main` 并删除特性分支
-- [ ] 远程临时分支清理完毕
-- [ ] 发布第一个独立版本 `v0.6.0`
-- [ ] GitHub Releases 可用
-- [ ] 所有现有测试通过
-- [ ] OpenCode 配额显示有对应测试覆盖
-- [ ] `plugin.json` 的 owner 更新为你
-- [ ] `CHANGELOG.md` 已建立（Keep a Changelog 格式）
-- [ ] 仓库已迁移到组织账号
-- [ ] `upstream` remote 已删除
+- [ ] `isBailianCoding()` 正确识别 `coding.dashscope.aliyuncs.com`
+- [ ] 未配置 Coding Plan 时模块静默返回 null
+- [ ] 余额提取与 qwen.ts 一致（复用 `extractBalance`）
+- [ ] 缓存 5 分钟内不重复请求
+- [ ] 网络错误静默降级
+- [ ] bailian 在 qwen 之前匹配，避免误抢
+- [ ] `npm run build` + `npm test` 通过
+- [ ] 代码量 ≈ 30 行，无外部依赖
