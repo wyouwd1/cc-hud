@@ -206,6 +206,16 @@ cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota / subscript
   <td><code>https://dashscope.aliyuncs.com/compatible-mode/anthropic</code></td>
   <td>account balance — <code>¥88.50</code></td>
 </tr>
+<tr>
+  <td><b>Moonshot (Kimi)</b></td>
+  <td><code>https://api.moonshot.cn/anthropic</code></td>
+  <td>account balance — <code>¥66.60</code></td>
+</tr>
+<tr>
+  <td><b>Groq</b></td>
+  <td><code>https://api.groq.com/anthropic</code></td>
+  <td>usage/quota — <code>9500</code></td>
+</tr>
 </table>
 
 Example output:
@@ -215,6 +225,8 @@ Example output:
 [MiniMax M3]      █▎░░░░░░░░ 13% │ 5h:17% (1.1h) │ 7d:2% (6.4d)
 [GLM 5.2]         ████▏░░░░░ 41% (1M) │ ¥88.50
 [Qwen 2.5]        ██░░░░░░░░ 20% │ ¥88.50
+[Moonshot v1]     ██░░░░░░░░ 20% │ ¥66.60
+[Groq Llama]      █▎░░░░░░░░ 13% │ 9500
 ```
 
 Works with `dscode` / `mmcode` / `glmcode` / `ZCode` or any launcher that exports `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`.
@@ -294,14 +306,14 @@ Output is reduced to: `[Sonnet 4.6] ██░░░░░░░░ 20%`
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 132 tests (node:test)
+npm test           # 164 tests (node:test)
 ```
 
 Project layout:
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | TypeScript source — entry, render, model normalize, DeepSeek / MiniMax / GLM / OpenCode Go / Qwen pickers |
+| `src/` | TypeScript source — entry, render, model normalize, DeepSeek / MiniMax / GLM / OpenCode Go / Qwen / Moonshot / Groq pickers |
 | `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
 | `commands/setup.md` | `/cc-hud:setup` slash command |
 | `tests/` | `node:test` unit tests (TS + CJS) |
