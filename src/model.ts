@@ -39,7 +39,26 @@ function tryParse(raw: string): ModelName | null {
   return null;
 }
 
+function isLocalProxy(): boolean {
+  const baseUrl = process.env.ANTHROPIC_BASE_URL ?? '';
+  return baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost');
+}
+
+function proxyModelName(): string | null {
+  if (!isLocalProxy()) return null;
+  const raw = process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME;
+  if (!raw || !raw.trim()) return null;
+  const parsed = tryParse(raw.trim());
+  return parsed ? parsed.name : raw.trim();
+}
+
 export function shortModelName(displayName?: string, id?: string): ModelName {
+  // Proxy override: check ANTHROPIC_DEFAULT_OPUS_MODEL_NAME
+  const proxyName = proxyModelName();
+  if (proxyName) {
+    const variant = id ? tryParse(id)?.variant ?? null : null;
+    return { name: proxyName, variant };
+  }
   // Try id first (carries accurate [1m] variant suffix)
   if (id) {
     const r = tryParse(id);

@@ -1,8 +1,16 @@
-import { describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { shortModelName } from '../dist/model.js';
 
 describe('shortModelName', () => {
+  let origEnv: NodeJS.ProcessEnv;
+  beforeEach(() => {
+    origEnv = { ...process.env };
+    // Clean proxy env so existing tests are not contaminated by host environment
+    delete process.env.ANTHROPIC_BASE_URL;
+    delete process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME;
+  });
+  afterEach(() => { process.env = origEnv; });
   it('parses standard model id', () => {
     assert.deepEqual(shortModelName(undefined, 'claude-opus-4-7'), { name: 'Opus 4.7', variant: null });
     assert.deepEqual(shortModelName(undefined, 'claude-sonnet-4-6'), { name: 'Sonnet 4.6', variant: null });
@@ -103,5 +111,72 @@ describe('shortModelName', () => {
     // Some backends only send display_name, not id
     assert.deepEqual(shortModelName('glm-5.2[1m]'), { name: 'GLM 5.2', variant: '1M' });
     assert.deepEqual(shortModelName('glm-5-turbo'), { name: 'GLM 5 Turbo', variant: null });
+  });
+});
+
+describe('proxy model override', () => {
+  let origEnv: NodeJS.ProcessEnv;
+  beforeEach(() => { origEnv = { ...process.env }; });
+  afterEach(() => { process.env = origEnv; });
+
+  it('reads model name from env under local proxy', () => {
+    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+    process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME = 'deepseek-v4-flash';
+    assert.deepEqual(
+      shortModelName(undefined, 'claude-opus-4-8[1m]'),
+      { name: 'DeepSeek V4 Flash', variant: '1M' },
+    );
+  });
+
+  it('uses variant from model id', () => {
+    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+    process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME = 'deepseek-v4-flash';
+    assert.equal(shortModelName(undefined, 'claude-opus-4-8[1m]').variant, '1M');
+  });
+
+  it('ignores env var when not under local proxy', () => {
+    process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+    process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME = 'deepseek-v4-flash';
+    assert.deepEqual(
+      shortModelName(undefined, 'claude-opus-4-8[1m]'),
+      { name: 'Opus 4.8', variant: '1M' },
+    );
+  });
+
+  it('ignores empty env var under local proxy', () => {
+    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+    process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME = '';
+    assert.deepEqual(
+      shortModelName(undefined, 'claude-opus-4-8[1m]'),
+      { name: 'Opus 4.8', variant: '1M' },
+    );
+  });
+
+  it('beautifies deepseek name', () => {
+    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+    process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME = 'deepseek-v4-flash';
+    assert.deepEqual(
+      shortModelName(undefined, 'claude-opus-4-8[1m]'),
+      { name: 'DeepSeek V4 Flash', variant: '1M' },
+    );
+  });
+
+  it('returns raw env value when tryParse does not match', () => {
+    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+    process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME = 'custom-model-x1';
+    assert.deepEqual(
+      shortModelName(undefined, 'claude-opus-4-8[1m]'),
+      { name: 'custom-model-x1', variant: '1M' },
+    );
+  });
+
+  it('falls through when no proxy env', () => {
+    process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+    process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME = 'deepseek-v4-flash';
+    // Non-localhost base URL → no proxy override → normal parsing
+    assert.deepEqual(
+      shortModelName(undefined, 'claude-opus-4-8[1m]'),
+      { name: 'Opus 4.8', variant: '1M' },
+    );
   });
 });

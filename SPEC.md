@@ -1,144 +1,155 @@
-# SPEC: 阿里云百炼 Coding Plan 额度适配
+# SPEC: 自定义模型（cc-switch 代理）名称正确显示
 
 ## 1. 目标
 
-为 cc-hud 新增阿里云百炼（Bailian）「Coding Plan（编码计划）」套餐的额度采集与显示，遵循现有后端额度模块的统一模式。
+cc-hud 当前从 Claude Code stdin JSON 的 `model.id` / `display_name` 读取模型名。当用户通过 cc-switch 等代理使用自定义模型（如 deepseek-v4-flash）时，Claude Code 仍将 `model.id` 报告为 `claude-opus-4-8[1M]`，导致 hud 错误显示为「Opus 4.8」而非实际模型名。
+
+要求：当 `ANTHROPIC_DEFAULT_OPUS_MODEL_NAME` 环境变量存在时，以此值作为模型显示名，替代从 stdin 解析的结果。
 
 ## 2. 背景
 
-cc-hud 已支持 7 个后端额度/余额采集模块：
-
-| 模块 | 检测条件 (`ANTHROPIC_BASE_URL`) | 认证方式 | 输出类型 |
-|------|-------------------------------|---------|---------|
-| qwen.ts | `dashscope` / `qwen` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 余额字符串 (¥xx.xx) |
-| balance.ts (DeepSeek) | `deepseek` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 余额字符串 |
-| glm.ts (GLM) | `bigmodel.cn` / `api.z.ai` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 余额字符串 |
-| moonshot.ts | `moonshot` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 余额字符串 |
-| groq.ts | `groq` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 用量数值 |
-| mmx.ts (MiniMax) | `minimax` | `ANTHROPIC_AUTH_TOKEN` (API Key) | 配额对象 (5h/7d) |
-| opencode.ts | `OPENCODE_AUTH` env | 独立 Cookie | 配额对象 (滚动/每周/每月) |
-
-## 3. 百炼 Coding Plan 接入点
-
-用户配置 Claude Code 使用百炼 Coding Plan 时，设置：
+### 2.1 数据流
 
 ```
-ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic
-ANTHROPIC_AUTH_TOKEN=sk-<dashscope-api-key>
+cc-switch                              cc-hud
+   │                                      │
+   │ 设定 ANTHROPIC_DEFAULT_OPUS_MODEL    │
+   │   = claude-opus-4-8[1M]             │
+   │ 设定 ANTHROPIC_DEFAULT_OPUS_MODEL   │
+   │   _NAME = deepseek-v4-flash         │
+   │                                      │
+Claude Code                               │
+   │ 发送 stdin JSON 给 cc-hud           │
+   │ model.id = claude-opus-4-8[1M]      │
+   │                                      ▼
+                                    当前: 解析为 Opus 4.8 ✗
+                                    目标: 显示 deepseek-v4-flash ✓
 ```
 
-使用的 API 兼容端点：
-- OpenAI 兼容：`https://coding.dashscope.aliyuncs.com/v1`
-- Anthropic 兼容：`https://coding.dashscope.aliyuncs.com/apps/anthropic`
+### 2.2 相关环境变量（Claude Code 内置机制）
 
-Coding Plan 本质是 DashScope（通义千问）平台上的预付费配额套餐，额度查询可直接使用 DashScope 标准账单 API。
+| 变量 | 值 | 含义 |
+|------|-----|------|
+| `ANTHROPIC_DEFAULT_OPUS_MODEL` | `claude-opus-4-8[1M]` | 自定义模型在 cc 内部的 ID |
+| `ANTHROPIC_DEFAULT_OPUS_MODEL_NAME` | `deepseek-v4-flash` | 自定义模型的实际显示名称 |
+| `ANTHROPIC_BASE_URL` | `http://127.0.0.1:15721` | 代理地址（cc-switch 本地服务） |
 
-## 4. 检测与认证
+这些变量由 cc-switch 设定，Claude Code 原生支持。`ANTHROPIC_DEFAULT_OPUS_MODEL_NAME` 是 Claude Code v0.5+ 的标准配置项——当值非空时表示用户使用了自定义模型。
 
-| 字段 | 方式 |
+## 3. 方案设计
+
+### 3.1 检测条件
+
+分两步检测：
+
+1. **是否使用本地代理**：`ANTHROPIC_BASE_URL` 包含 `127.0.0.1` 或 `localhost`
+2. **实际模型名**：`ANTHROPIC_DEFAULT_OPUS_MODEL_NAME` 的值
+
+只有 step 1 命中时，才用 step 2 的值覆盖模型显示名。这样确保仅在本地代理场景下生效，不影响直连 Anthropic API 的用户。
+
+### 3.2 修改范围
+
+`src/model.ts` — 新增 `proxyModelName()` 函数，在 `shortModelName()` 中优先检测。
+
+### 3.3 核心逻辑
+
+```typescript
+const PROXY_HOSTS = ['127.0.0.1', 'localhost'];
+
+function isLocalProxy(): boolean {
+  const baseUrl = process.env.ANTHROPIC_BASE_URL ?? '';
+  return PROXY_HOSTS.some(h => baseUrl.includes(h));
+}
+
+function proxyModelName(): string | null {
+  if (!isLocalProxy()) return null;
+  const raw = process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME;
+  if (!raw) return null;
+  // 如果 raw 能通过 tryParse 美化（如 deepseek-v4-flash → DeepSeek V4 Flash），使用美化结果
+  const parsed = tryParse(raw);
+  if (parsed) return parsed.name;
+  // 否则直接返回原始值
+  return raw.trim() || null;
+}
+```
+
+在 `shortModelName()` 中，代理模型名 > stdin 解析：
+
+```typescript
+export function shortModelName(displayName?: string, id?: string): ModelName {
+  // 1. 本地代理模式下，使用 ANTHROPIC_DEFAULT_OPUS_MODEL_NAME 显示实际模型
+  const proxyName = proxyModelName();
+  if (proxyName) {
+    const variant = id ? tryParse(id)?.variant ?? null : null;
+    return { name: proxyName, variant };
+  }
+  // 2. 原逻辑：try id → try display_name → fallback
+  ...
+}
+```
+
+### 3.3 关键设计决策
+
+| 决策 | 选择 | 原因 |
+|------|------|------|
+| 环境变量 vs 检测 ANTHROPIC_BASE_URL | 环境变量 | BASE_URL 只是代理地址，不包含模型信息；OPUS_MODEL_NAME 是 Claude Code 原生语义 |
+| 优先级 | env > id > display_name | 环境变量是用户/代理主动设定的，代表「实际是什么模型」，优先级应最高 |
+| variant 处理 | 从原 id 提取 | `[1M]` 表示上下文容量，与模型本身无关，应保留 |
+| 模型名美化 | 通过 tryParse | 已有的 deepseek/glm/mm 解析器能提供更友好的展示（deepseek-v4-flash → DeepSeek V4 Flash） |
+
+### 3.4 边界情况
+
+| 情况 | 行为 |
 |------|------|
-| 检测 | `ANTHROPIC_BASE_URL` 包含 `coding.dashscope.aliyuncs.com` |
-| API Key | `ANTHROPIC_AUTH_TOKEN`（DashScope API Key） |
-| 额度 API | `GET https://dashscope.aliyuncs.com/api/v1/billing/query`（同 qwen.ts） |
+| env 未设置 | 完全回退当前行为，零侵入 |
+| env 为空字符串 | 视为未设置，回退 |
+| env 值不规范（非已知模式） | 直接显示原始值，不崩溃 |
+| 同时使用 DeepSeek/GLM/MiniMax 配额模块 | 模型名替换互不影响，各模块独立 |
 
-与 qwen.ts 的关系：
-- qwen.ts 检测 `dashscope` / `qwen`（覆盖通用 DashScope 用户）
-- bailian.ts 检测 `coding.dashscope.aliyuncs.com`（仅 Coding Plan 用户）
-- 两者调用相同的 billing endpoint
-- 优先级：bailian.ts 更具体，应排在 qwen.ts 之前
+## 4. 测试
 
-## 5. 模块设计
+### 4.1 单元测试（`tests/model.test.ts`）
 
-### 文件：`src/bailian.ts`
+- `isLocalProxy()` 在 `ANTHROPIC_BASE_URL` 含 `127.0.0.1`/`localhost` 时返回 true
+- `isLocalProxy()` 在 BASE_URL 为 `api.anthropic.com` 或未设置时返回 false
+- `proxyModelName()` 在非本地代理模式下返回 null
+- `proxyModelName()` 在本地代理 + `ANTHROPIC_DEFAULT_OPUS_MODEL_NAME` 设置时返回模型名
+- `proxyModelName()` 在本地代理 + env 未设置时返回 null
+- `proxyModelName()` 在本地代理 + env 为空字符串时返回 null
+- `shortModelName()` 在 proxy 模式下模型名来自 env，variant 仍从 id 提取
+- 代理模式下 `deepseek-v4-flash` → `DeepSeek V4 Flash`（经 tryParse 美化）
 
-遵循最简模式（参考 qwen.ts，33 行）：
+### 4.2 集成验证
 
-```typescript
-import { readCached, writeCached, fetchWithTimeout, extractBalance, TTL } from './cache.js';
+- 设置 `ANTHROPIC_DEFAULT_OPUS_MODEL_NAME=deepseek-v4-flash` 后运行 cc-hud，模型名显示为「DeepSeek V4 Flash」
+- 不设置该变量时，行为完全不变
 
-function isBailianCoding(): boolean {
-  const base = process.env.ANTHROPIC_BASE_URL;
-  return !!base && base.includes('coding.dashscope.aliyuncs.com');
-}
+## 5. 实施步骤
 
-export async function getBailianBalance(): Promise<string | null> {
-  if (!isBailianCoding()) return null;
-  const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
-  if (!apiKey) return null;
+### Step 1：修改 `src/model.ts`
+- 新增 `envModelName()` 函数
+- 修改 `shortModelName()` 添加环境变量优先逻辑
+- 导出 `envModelName()` 供测试
 
-  const cached = readCached<{ balance: string; ts: number }>('bailian-balance');
-  if (cached && Date.now() - cached.ts < TTL) return cached.balance;
+### Step 2：编写测试
+- 在 `tests/model.test.ts` 中新增 env 相关测试用例
+- mock `process.env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME`
 
-  try {
-    const resp = await fetchWithTimeout('https://dashscope.aliyuncs.com/api/v1/billing/query', {
-      headers: { Authorization: `Bearer ${apiKey}`, accept: 'application/json' },
-    });
-    if (resp.ok) {
-      const balance = extractBalance(await resp.json());
-      if (balance) {
-        writeCached('bailian-balance', { balance, ts: Date.now() });
-        return balance;
-      }
-    }
-  } catch {}
-
-  return cached?.balance ?? null;
-}
-```
-
-### 与 qwen.ts 的差异
-
-| 维度 | qwen.ts | bailian.ts |
-|------|---------|------------|
-| 检测条件 | `dashscope` / `qwen` | `coding.dashscope.aliyuncs.com` |
-| API 端点 | 同上 | 同上 (`dashscope.aliyuncs.com/api/v1/billing/query`) |
-| 缓存键 | `qwen-balance` | `bailian-balance` |
-| 优先级 | 通用 DashScope | 仅 Coding Plan（更具体） |
-
-## 6. 集成到 index.ts
-
-在 `getExtraSegment()` 优先级链中，bailian.ts 应**排在 qwen.ts 之前**（因为 `coding.dashscope.aliyuncs.com` 也包含 `dashscope`，bailian 更具体先匹配）：
-
-```typescript
-const getExtraSegment = async (): Promise<string | null> =>
-  readExtraFile()
-    ?? await getBailianBalance()    // 新增，在 qwen 之前
-    ?? await getQwenBalance()
-    ?? await getMoonshotBalance()
-    ?? await getGroqUsage()
-    ?? await getExtra()
-    ?? await getGlmBalance();
-```
-
-为什么排 qwen 前面：如果用户用 `ANTHROPIC_BASE_URL=coding.dashscope.aliyuncs.com`，这个 URL 同时包含 `dashscope`，qwen.ts 的 `isQwen()` 也会返回 true。但 bailian.ts 是专门为 Coding Plan 优化的，应该优先匹配。
-
-## 7. 实施步骤
-
-### Step 1：新建 `src/bailian.ts`
-- 30 行代码，风格与 qwen.ts 完全一致
-- 检测条件 `coding.dashscope.aliyuncs.com`
-- 缓存键 `bailian-balance`
-
-### Step 2：集成到 `index.ts`
-- 导入 `getBailianBalance`
-- 加入 `getExtraSegment()` 链（qwen 前面）
-
-### Step 3：单元测试
-- 检测函数测试（`coding.dashscope.aliyuncs.com` 返回 true，不含的返回 false）
-- 余额提取测试（使用模拟响应数据，复用 `cache.ts` 的 `extractBalance`）
-- 优先级测试（bailian 在 qwen 之前匹配）
-
-### Step 4：编译验证
+### Step 3：编译验证
 - `npm run build` 通过
 - `npm test` 通过
 
-## 8. 验收标准
+## 6. 验收标准
 
-- [ ] `isBailianCoding()` 正确识别 `coding.dashscope.aliyuncs.com`
-- [ ] 未配置 Coding Plan 时模块静默返回 null
-- [ ] 余额提取与 qwen.ts 一致（复用 `extractBalance`）
-- [ ] 缓存 5 分钟内不重复请求
-- [ ] 网络错误静默降级
-- [ ] bailian 在 qwen 之前匹配，避免误抢
+- [ ] `ANTHROPIC_DEFAULT_OPUS_MODEL_NAME` 设置时模型名正确显示为深层模型名
+- [ ] 不设置该变量时行为零变化
+- [ ] variant（如 `(1M)`）不受影响，正确渲染
+- [ ] env 值与 tryParse 任一模式匹配时使用美化名，否则显示原始值
 - [ ] `npm run build` + `npm test` 通过
-- [ ] 代码量 ≈ 30 行，无外部依赖
+- [ ] 改动量 ≤ 30 行
+
+## 7. 不涉及的范围（Out of scope）
+
+- Sonnet/Haiku 的自定义模型覆盖（`ANTHROPIC_DEFAULT_SONNET_MODEL_NAME` 等）— 当前 Opus 自定义最常用，后续可按需扩展
+- 修改 cc-switch 或其他代理行为 — 仅从 cc-hud 侧解决
+- cc-hud 加载时主动检测代理类型 — 不依赖任何代理特定逻辑

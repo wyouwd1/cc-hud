@@ -1,19 +1,13 @@
-# ToDo: 阿里云百炼 Coding Plan 额度适配 ✅ 全部完成
+# ToDo: 自定义代理模型名正确显示 ✅ 全部完成
 
-## Phase 1: 核心模块
+## Phase 1: 核心逻辑
 
-- [x] **T1** — 新建 `src/bailian.ts`（含 isBailian/aggregatePlan/fetchQuota/getBailianQuota）
+- [x] **T1** — `src/model.ts` 新增 `isLocalProxy()` / `proxyModelName()`，修改 `shortModelName()`
 
-## Phase 2: 集成与渲染
+## Phase 2: 测试
 
-- [x] **T2** — 集成到 `src/index.ts`（Promise.all + 优先级链）
-- [x] **T3** — 验证渲染倒计时兼容性（render.ts 已支持 `mo` 段，无需改动）
+- [x] **T2** — `tests/model.test.ts` 新增代理模式测试用例（7 个 it）+ 环境隔离
 
-## Phase 3: 测试
+## Phase 3: 验证
 
-- [x] **T4** — 编写单元测试 `tests/bailian.test.ts`（17 个测试，隔离/解析/降级/缓存）
-- [x] **T5** — 完整测试套件验证（`npm test` — 181 个测试全部通过）
-
-## Phase 4: 文档
-
-- [x] **T6** — 更新 README（百炼表格行 + 环境变量说明 + 输出示例）
+- [x] **T3** — `npm test` 全部通过（188 tests, 42 suites, 0 failures）
