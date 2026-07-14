@@ -42,7 +42,7 @@ OpenCode Go 作为本地代理（`127.0.0.1`），有两个独特痛点：
 | 条件 | 值 |
 |------|-----|
 | 检测目标 | `ANTHROPIC_BASE_URL` 环境变量 |
-| 匹配模式 | 包含 `127.0.0.1` |
+| 匹配模式 | 包含 `127.0.0.1` 或 `localhost` |
 | 端口范围 | 任意端口 |
 | 匹配方式 | 字符串 `.includes('127.0.0.1')` |
 
@@ -247,7 +247,7 @@ CC_HUD_EXTRA_FILE > OC 引导提示 > Qwen > Moonshot > Groq > DeepSeek > GLM
 | # | 场景 | 处理 |
 |---|------|------|
 | 1 | `ANTHROPIC_BASE_URL` 未设置 | 不触发检测，正常行为 |
-| 2 | `ANTHROPIC_BASE_URL` 是 `localhost` 而非 `127.0.0.1` | 目前只检查 `127.0.0.1`。`localhost` 可能解析为 `::1`（IPv6），暂不考虑。如果用户用 `localhost`，URL 转写为 `127.0.0.1` 时才触发 |
+| 2 | `ANTHROPIC_BASE_URL` 是 `localhost` 而非 `127.0.0.1` | `isLocalProxy()` 同时检查了 `localhost`，触发检测，行为一致 |
 | 3 | 用户用其他本地代理（liteLLM、自建中转） | 可能误判，但一次提示 + 可静音处理 |
 | 4 | 用户设置静音后改变主意 | 取消环境变量即可恢复提示 |
 | 5 | 配置了 OPENCODE_AUTH 但 ANTHROPIC_BASE_URL 不含 127.0.0.1 | 当前行为不变，正常抓取配额 |
@@ -313,5 +313,5 @@ export function getOpenCodeGuidanceLine(): string | null; // 独立指引行
 > 以下事项在实现阶段进一步确认：
 
 1. **独立指引行的行为** — 每次调用 cc-hud 都输出指引行（静音前），用户每开一个新会话都会看到。这是预期行为。
-2. **`localhost` 是否也应纳入检测** — 当前只查 `127.0.0.1`，如需要可扩展。
+2. **`localhost` 检测** — `isLocalProxy()` 同时检查了 `127.0.0.1` 和 `localhost`，行为已统一。
 3. **指引行格式** — 当前采用 `[cc-hud] ⚠ ...` 前缀格式，Claude Code 是否能正确取最后一行作为状态栏？需验证。

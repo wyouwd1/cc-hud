@@ -1,5 +1,5 @@
 import { readCached, writeCached, fetchWithTimeout, TTL } from './cache.js';
-import { isLocalProxy } from './model.js';
+import { isLocalProxy } from './proxy.js';
 
 const TIMEOUT_MS = 5000; // OpenCode workspace page is a full HTML render (~1-2s)
 

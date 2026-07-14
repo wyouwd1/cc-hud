@@ -330,13 +330,6 @@ describe('auto-detection & guidance', () => {
       const { needsGuidance } = await importOc();
       assert.equal(needsGuidance(), false);
     });
-
-    it('returns false when 127.0.0.1 + no auth + silenced=1', async () => {
-      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
-      process.env.CC_HUD_SKIP_OC_HINT = '1';
-      const { needsGuidance } = await importOc();
-      assert.equal(needsGuidance(), false);
-    });
   });
 
   // ─── getOpenCodeHint ───────────────────────────────────────

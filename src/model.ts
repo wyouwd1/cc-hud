@@ -1,5 +1,7 @@
 // Prefer `id` over `display_name`: only id carries the `[1m]` variant suffix
 // for extended-context mode (display_name surfaces it as free text "(1M context)").
+import { isLocalProxy } from './proxy.js';
+
 export interface ModelName {
   name: string;
   variant: string | null;
@@ -37,11 +39,6 @@ function tryParse(raw: string): ModelName | null {
   }
 
   return null;
-}
-
-export function isLocalProxy(): boolean {
-  const baseUrl = process.env.ANTHROPIC_BASE_URL ?? '';
-  return baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost');
 }
 
 function proxyModelName(): string | null {
