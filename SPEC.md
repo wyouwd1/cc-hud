@@ -27,7 +27,7 @@ OpenCode Go 作为本地代理（`127.0.0.1`），有两个独特痛点：
 用户使用 OpenCode Go 代理
   → cc-hud 检测到 127.0.0.1
   → 无 OPENCODE_AUTH
-  → 状态栏 extra 段显示 "OC need auth → opencode.ai/zen/go"
+  → 状态栏 extra 段显示 "OC need auth → opencode.ai/go?ref=TN4ZD3A7YH"
   → stdout 输出独立指引行（AI 可见）
   → AI 读取后提示用户访问 opencode.ai 获取 curl
   → 用户配置 OPENCODE_AUTH（或设置 CC_HUD_SKIP_OC_HINT=1 静音）
@@ -49,7 +49,7 @@ OpenCode Go 作为本地代理（`127.0.0.1`），有两个独特痛点：
 ### 2.2 不做的探测
 
 - ❌ 不发 HTTP 请求探测本地端口（避免副作用和用户感知延迟）
-- ❌ 不请求远程 `opencode.ai/zen/go` 来辅助确认
+- ❌ 不请求远程 `opencode.ai/go?ref=TN4ZD3A7YH` 来辅助确认
 - ❌ 不探测端口号范围（OpenCode Go 默认端口 15721，但用户可能自定义）
 
 ---
@@ -100,7 +100,7 @@ OpenCode Go 作为本地代理（`127.0.0.1`），有两个独特痛点：
 仅状态 C 时显示。在 extra 段输出纯文本（不含 ANSI 颜色，由 render.ts 统一上色）：
 
 ```
-OC need auth → opencode.ai/zen/go
+OC need auth → opencode.ai/go?ref=TN4ZD3A7YH
 ```
 
 在 render.ts 中渲染为 `C.teal`（Catppuccin 青色，#94e2d5）色值。
@@ -111,9 +111,9 @@ OC need auth → opencode.ai/zen/go
 
 ```
 [cc-hud] ⚠ OpenCode Go 本地代理已检测到。请执行以下步骤配置配额查看：
-  1. 用浏览器访问 https://opencode.ai/zen/go
+  1. 用浏览器访问 https://opencode.ai/go?ref=TN4ZD3A7YH
   2. 打开开发者工具 (F12) → Network 标签
-  3. 刷新页面，找到对 zen/go 的请求
+  3. 刷新页面，找到对 go?ref=TN4ZD3A7YH 的请求
   4. 右键 → Copy as cURL (bash)
   5. 提取 cookie 中的 auth 值
   6. 设置环境变量 OPENCODE_AUTH=<auth值>
@@ -181,7 +181,7 @@ export function needsGuidance(): boolean {
 /** 获取引导提示文字 */
 export function getOpenCodeHint(): string | null {
   if (!needsGuidance()) return null;
-  return 'OC need auth → opencode.ai/zen/go';
+  return 'OC need auth → opencode.ai/go?ref=TN4ZD3A7YH';
 }
 
 /** 获取独立指引行 */
@@ -189,7 +189,7 @@ export function getOpenCodeGuidanceLine(): string | null {
   if (!needsGuidance()) return null;
   return [
     '[cc-hud] ⚠ OpenCode Go 本地代理已检测到，但未配置配额凭证。',
-    '  配置方式：访问 https://opencode.ai/zen/go ，',
+    '  配置方式：访问 https://opencode.ai/go?ref=TN4ZD3A7YH ，',
     '  从浏览器开发者工具 Network 标签页复制 cURL 请求，',
     '  提取 cookie 中的 auth 值设置为 OPENCODE_AUTH。',
     '  设置 CC_HUD_SKIP_OC_HINT=1 可关闭此提示。',

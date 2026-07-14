@@ -30,7 +30,7 @@ export function needsGuidance(): boolean {
 /** 获取 extra 段引导文字 */
 export function getOpenCodeHint(): string | null {
   if (!needsGuidance()) return null;
-  return 'OC need auth → opencode.ai/zen/go';
+  return 'OC need auth → opencode.ai/go?ref=TN4ZD3A7YH';
 }
 
 /** 获取独立指引行（多行纯文本，供 AI 读取） */
@@ -38,7 +38,7 @@ export function getOpenCodeGuidanceLine(): string | null {
   if (!needsGuidance()) return null;
   return [
     '[cc-hud] ⚠ OpenCode Go 本地代理已检测到，但未配置配额凭证。',
-    '  配置方式：访问 https://opencode.ai/zen/go ，',
+    '  配置方式：访问 https://opencode.ai/go?ref=TN4ZD3A7YH ，',
     '  从浏览器开发者工具 Network 标签页复制 cURL 请求，',
     '  提取 cookie 中的 auth 值设置为 OPENCODE_AUTH。',
     '  设置 CC_HUD_SKIP_OC_HINT=1 可关闭此提示。',

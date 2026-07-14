@@ -356,12 +356,12 @@ describe('auto-detection & guidance', () => {
       assert.equal(getOpenCodeHint(), null);
     });
 
-    it('contains "OC" and "zen/go" in the hint text', async () => {
+    it('contains "OC" and the ref URL in the hint text', async () => {
       process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
       const { getOpenCodeHint } = await importOc();
       const hint = getOpenCodeHint()!;
       assert.ok(hint.includes('OC'), 'hint should mention OC');
-      assert.ok(hint.includes('zen/go'), 'hint should reference zen/go');
+      assert.ok(hint.includes('go?ref='), 'hint should reference the go page');
     });
   });
 
@@ -382,10 +382,10 @@ describe('auto-detection & guidance', () => {
       assert.equal(getOpenCodeGuidanceLine(), null);
     });
 
-    it('contains opencode.ai/zen/go in the guidance', async () => {
+    it('contains the opencode.ai ref URL in the guidance', async () => {
       process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
       const { getOpenCodeGuidanceLine } = await importOc();
-      assert.ok(getOpenCodeGuidanceLine()!.includes('opencode.ai/zen/go'));
+      assert.ok(getOpenCodeGuidanceLine()!.includes('go?ref=TN4ZD3A7YH'));
     });
 
     it('has multiple lines', async () => {

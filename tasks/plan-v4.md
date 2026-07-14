@@ -4,7 +4,7 @@
 
 当 `ANTHROPIC_BASE_URL` 指向 `127.0.0.1`（OpenCode Go 本地代理）且用户未配置 `OPENCODE_AUTH` 时，cc-hud 当前完全静默。用户不知道需要额外配置配额凭证。
 
-**解决**：自动检测本地代理特征，在状态栏 extra 段显示引导提示 + 输出独立指引行供 AI 读取，引导用户通过 `https://opencode.ai/zen/go` 获取 auth cookie。
+**解决**：自动检测本地代理特征，在状态栏 extra 段显示引导提示 + 输出独立指引行供 AI 读取，引导用户通过 `https://opencode.ai/go?ref=TN4ZD3A7YH` 获取 auth cookie。
 
 ## 当前已可复用的代码
 
@@ -99,7 +99,7 @@ export function needsGuidance(): boolean {
 /** 获取 extra 段引导文字 */
 export function getOpenCodeHint(): string | null {
   if (!needsGuidance()) return null;
-  return 'OC need auth → opencode.ai/zen/go';
+  return 'OC need auth → opencode.ai/go?ref=TN4ZD3A7YH';
 }
 
 /** 获取独立指引行（多行纯文本） */
@@ -107,7 +107,7 @@ export function getOpenCodeGuidanceLine(): string | null {
   if (!needsGuidance()) return null;
   return [
     '[cc-hud] ⚠ OpenCode Go 本地代理已检测到，但未配置配额凭证。',
-    '  配置方式：访问 https://opencode.ai/zen/go ，',
+    '  配置方式：访问 https://opencode.ai/go?ref=TN4ZD3A7YH ，',
     '  从浏览器开发者工具 Network 标签页复制 cURL 请求，',
     '  提取 cookie 中的 auth 值设置为 OPENCODE_AUTH。',
     '  设置 CC_HUD_SKIP_OC_HINT=1 可关闭此提示。',
@@ -190,7 +190,7 @@ const getExtraSegment = async (): Promise<string | null> =>
 
 **验收标准:**
 - [ ] 状态 C（127.0.0.1 + 无凭证）时，stdout 首行输出指引文本
-- [ ] 状态 C 时，状态栏 extra 段显示 "OC need auth → opencode.ai/zen/go"
+- [ ] 状态 C 时，状态栏 extra 段显示 "OC need auth → opencode.ai/go?ref=TN4ZD3A7YH"
 - [ ] 状态 A/B/D/E 时，行为零变化
 - [ ] 指引行出现在状态栏行之前，不影响状态栏解析
 - [ ] 超时机制不变（6s 硬超时不受影响）
@@ -236,13 +236,13 @@ describe('auto-detection & guidance', () => {
   describe('getOpenCodeHint', () => {
     it('returns string when needsGuidance is true')
     it('returns null when needsGuidance is false')
-    it('contains "OC" and "zen/go" in the hint text')
+    it('contains "OC" and "go?ref=TN4ZD3A7YH" in the hint text')
   })
 
   describe('getOpenCodeGuidanceLine', () => {
     it('returns string when needsGuidance is true')
     it('returns null when needsGuidance is false')
-    it('contains opencode.ai/zen/go in the guidance')
+    it('contains opencode.ai/go?ref=TN4ZD3A7YH in the guidance')
     it('has multiple lines')
   })
 })
