@@ -228,3 +228,171 @@ describe('opencode quota', () => {
     });
   });
 });
+
+// ─── Auto-detection & guidance ────────────────────────────────
+
+describe('auto-detection & guidance', () => {
+  const origBaseUrl = process.env.ANTHROPIC_BASE_URL;
+  const origAuth = process.env.OPENCODE_AUTH;
+  const origSkipHint = process.env.CC_HUD_SKIP_OC_HINT;
+
+  beforeEach(() => {
+    delete process.env.ANTHROPIC_BASE_URL;
+    delete process.env.OPENCODE_AUTH;
+    delete process.env.CC_HUD_SKIP_OC_HINT;
+  });
+
+  afterEach(() => {
+    if (origBaseUrl === undefined) delete process.env.ANTHROPIC_BASE_URL;
+    else process.env.ANTHROPIC_BASE_URL = origBaseUrl;
+    if (origAuth === undefined) delete process.env.OPENCODE_AUTH;
+    else process.env.OPENCODE_AUTH = origAuth;
+    if (origSkipHint === undefined) delete process.env.CC_HUD_SKIP_OC_HINT;
+    else process.env.CC_HUD_SKIP_OC_HINT = origSkipHint;
+  });
+
+  // ─── isOpenCode ────────────────────────────────────────────
+
+  describe('isOpenCode (enhanced)', () => {
+    it('returns true when ANTHROPIC_BASE_URL contains 127.0.0.1', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      const { isOpenCode } = await importOc();
+      assert.equal(isOpenCode(), true);
+    });
+
+    it('returns true when OPENCODE_AUTH is set (even without 127.0.0.1)', async () => {
+      process.env.OPENCODE_AUTH = 'some-auth';
+      process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+      const { isOpenCode } = await importOc();
+      assert.equal(isOpenCode(), true);
+    });
+
+    it('returns false when neither 127.0.0.1 nor OPENCODE_AUTH', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+      const { isOpenCode } = await importOc();
+      assert.equal(isOpenCode(), false);
+    });
+
+    it('returns true when both 127.0.0.1 and OPENCODE_AUTH', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      process.env.OPENCODE_AUTH = 'some-auth';
+      const { isOpenCode } = await importOc();
+      assert.equal(isOpenCode(), true);
+    });
+  });
+
+  // ─── isHintSilenced ────────────────────────────────────────
+
+  describe('isHintSilenced', () => {
+    it('returns true when CC_HUD_SKIP_OC_HINT=1', async () => {
+      process.env.CC_HUD_SKIP_OC_HINT = '1';
+      const { isHintSilenced } = await importOc();
+      assert.equal(isHintSilenced(), true);
+    });
+
+    it('returns false when CC_HUD_SKIP_OC_HINT is unset', async () => {
+      const { isHintSilenced } = await importOc();
+      assert.equal(isHintSilenced(), false);
+    });
+
+    it('returns false when CC_HUD_SKIP_OC_HINT=0', async () => {
+      process.env.CC_HUD_SKIP_OC_HINT = '0';
+      const { isHintSilenced } = await importOc();
+      assert.equal(isHintSilenced(), false);
+    });
+  });
+
+  // ─── needsGuidance ─────────────────────────────────────────
+
+  describe('needsGuidance', () => {
+    it('returns true when 127.0.0.1 + no auth + not silenced', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      const { needsGuidance } = await importOc();
+      assert.equal(needsGuidance(), true);
+    });
+
+    it('returns false when 127.0.0.1 but has credentials', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      process.env.OPENCODE_AUTH = 'some-auth';
+      const { needsGuidance } = await importOc();
+      assert.equal(needsGuidance(), false);
+    });
+
+    it('returns false when 127.0.0.1 but silenced', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      process.env.CC_HUD_SKIP_OC_HINT = '1';
+      const { needsGuidance } = await importOc();
+      assert.equal(needsGuidance(), false);
+    });
+
+    it('returns false when not 127.0.0.1 (even without auth)', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+      const { needsGuidance } = await importOc();
+      assert.equal(needsGuidance(), false);
+    });
+
+    it('returns false when 127.0.0.1 + no auth + silenced=1', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      process.env.CC_HUD_SKIP_OC_HINT = '1';
+      const { needsGuidance } = await importOc();
+      assert.equal(needsGuidance(), false);
+    });
+  });
+
+  // ─── getOpenCodeHint ───────────────────────────────────────
+
+  describe('getOpenCodeHint', () => {
+    it('returns string when needsGuidance is true', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      const { getOpenCodeHint } = await importOc();
+      const hint = getOpenCodeHint();
+      assert.ok(hint);
+      assert.equal(typeof hint, 'string');
+    });
+
+    it('returns null when needsGuidance is false', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+      const { getOpenCodeHint } = await importOc();
+      assert.equal(getOpenCodeHint(), null);
+    });
+
+    it('contains "OC" and "zen/go" in the hint text', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      const { getOpenCodeHint } = await importOc();
+      const hint = getOpenCodeHint()!;
+      assert.ok(hint.includes('OC'), 'hint should mention OC');
+      assert.ok(hint.includes('zen/go'), 'hint should reference zen/go');
+    });
+  });
+
+  // ─── getOpenCodeGuidanceLine ───────────────────────────────
+
+  describe('getOpenCodeGuidanceLine', () => {
+    it('returns string when needsGuidance is true', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      const { getOpenCodeGuidanceLine } = await importOc();
+      const line = getOpenCodeGuidanceLine();
+      assert.ok(line);
+      assert.equal(typeof line, 'string');
+    });
+
+    it('returns null when needsGuidance is false', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+      const { getOpenCodeGuidanceLine } = await importOc();
+      assert.equal(getOpenCodeGuidanceLine(), null);
+    });
+
+    it('contains opencode.ai/zen/go in the guidance', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      const { getOpenCodeGuidanceLine } = await importOc();
+      assert.ok(getOpenCodeGuidanceLine()!.includes('opencode.ai/zen/go'));
+    });
+
+    it('has multiple lines', async () => {
+      process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:15721';
+      const { getOpenCodeGuidanceLine } = await importOc();
+      const lines = getOpenCodeGuidanceLine()!.split('\n');
+      assert.ok(lines.length >= 2, 'guidance should span multiple lines');
+    });
+  });
+});
