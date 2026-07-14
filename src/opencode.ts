@@ -1,4 +1,5 @@
 import { readCached, writeCached, fetchWithTimeout, TTL } from './cache.js';
+import { isLocalProxy } from './model.js';
 
 const TIMEOUT_MS = 5000; // OpenCode workspace page is a full HTML render (~1-2s)
 
@@ -11,8 +12,42 @@ export interface OpenCodeQuota {
   monthlyResetsAt: number;
 }
 
-function isOpenCode(): boolean {
+/** OPENCODE_AUTH 凭证已配置 */
+function hasCredentials(): boolean {
   return !!process.env.OPENCODE_AUTH;
+}
+
+/** 是否已静音 OpenCode 引导提示 */
+export function isHintSilenced(): boolean {
+  return process.env.CC_HUD_SKIP_OC_HINT === '1';
+}
+
+/** 是否需要显示引导提示（本地代理 + 无凭证 + 未静音） */
+export function needsGuidance(): boolean {
+  return isLocalProxy() && !hasCredentials() && !isHintSilenced();
+}
+
+/** 获取 extra 段引导文字 */
+export function getOpenCodeHint(): string | null {
+  if (!needsGuidance()) return null;
+  return 'OC need auth → opencode.ai/zen/go';
+}
+
+/** 获取独立指引行（多行纯文本，供 AI 读取） */
+export function getOpenCodeGuidanceLine(): string | null {
+  if (!needsGuidance()) return null;
+  return [
+    '[cc-hud] ⚠ OpenCode Go 本地代理已检测到，但未配置配额凭证。',
+    '  配置方式：访问 https://opencode.ai/zen/go ，',
+    '  从浏览器开发者工具 Network 标签页复制 cURL 请求，',
+    '  提取 cookie 中的 auth 值设置为 OPENCODE_AUTH。',
+    '  设置 CC_HUD_SKIP_OC_HINT=1 可关闭此提示。',
+  ].join('\n');
+}
+
+/** OpenCode 相关功能的全局开关（有凭证或本地代理特征） */
+export function isOpenCode(): boolean {
+  return hasCredentials() || isLocalProxy();
 }
 
 function wsId(): string {
