@@ -39,7 +39,7 @@ function tryParse(raw: string): ModelName | null {
   return null;
 }
 
-function isLocalProxy(): boolean {
+export function isLocalProxy(): boolean {
   const baseUrl = process.env.ANTHROPIC_BASE_URL ?? '';
   return baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost');
 }
