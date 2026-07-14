@@ -1,3 +1,6 @@
+// Prefer `id` over `display_name`: only id carries the `[1m]` variant suffix
+// for extended-context mode (display_name surfaces it as free text "(1M context)").
+import { isLocalProxy } from './proxy.js';
 function tryParse(raw) {
     const cm = raw.match(/claude-(\w+)-(\d+)-(\d+)(?:-\d+)?(?:\[(\w+)\])?/);
     if (cm) {
@@ -27,10 +30,6 @@ function tryParse(raw) {
         return { name, variant: mm[3] ? mm[3].toUpperCase() : null };
     }
     return null;
-}
-function isLocalProxy() {
-    const baseUrl = process.env.ANTHROPIC_BASE_URL ?? '';
-    return baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost');
 }
 function proxyModelName() {
     if (!isLocalProxy())

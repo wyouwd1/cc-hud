@@ -5,7 +5,7 @@ import { shortModelName } from './model.js';
 import { getExtra } from './balance.js';
 import { getMmxQuota } from './mmx.js';
 import { getGlmBalance } from './glm.js';
-import { getOpenCodeQuota } from './opencode.js';
+import { getOpenCodeQuota, getOpenCodeHint, getOpenCodeGuidanceLine } from './opencode.js';
 import { getBailianQuota } from './bailian.js';
 import { getQwenBalance } from './qwen.js';
 import { getMoonshotBalance } from './moonshot.js';
@@ -45,10 +45,18 @@ async function main() {
         return ts < 1e12 ? ts * 1000 : ts;
     };
     const modelName = shortModelName(data.model?.display_name, data.model?.id);
+    // OpenCode 引导提示（同步，不涉及网络 IO）
+    const ocHint = getOpenCodeHint();
+    // 输出独立指引行供 AI 读取（状态栏行在最后的 console.log）
+    const guidanceLine = getOpenCodeGuidanceLine();
+    if (guidanceLine) {
+        console.log(guidanceLine);
+    }
     // Fetch from various backend-specific sources in parallel —
     // each module returns null when it doesn't apply (fast path).
-    // Extra segment: explicit CC_HUD_EXTRA_FILE > Qwen > Moonshot > Groq > DeepSeek > GLM
+    // Extra segment: explicit CC_HUD_EXTRA_FILE > OpenCode hint > Qwen > Moonshot > Groq > DeepSeek > GLM
     const getExtraSegment = async () => readExtraFile()
+        ?? ocHint
         ?? await getQwenBalance()
         ?? await getMoonshotBalance()
         ?? await getGroqUsage()
