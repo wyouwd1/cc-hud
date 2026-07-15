@@ -35,15 +35,19 @@ export async function withCache<T>(
   fetchFn: () => Promise<T | null>,
   ttl: number = TTL,
 ): Promise<T | null> {
-  const cached = readCached<{ payload: T; ts: number }>(key);
-  if (cached && Date.now() - cached.ts < ttl) return cached.payload;
+  const cached = readCached<Record<string, unknown>>(key);
+  const cachePayload = cached?.payload as T | undefined;
+  const cacheTs = cached?.ts;
+  if (cachePayload != null && typeof cacheTs === 'number' && Date.now() - cacheTs < ttl) {
+    return cachePayload;
+  }
 
   const fresh = await fetchFn();
   if (fresh) {
     writeCached(key, { payload: fresh, ts: Date.now() });
     return fresh;
   }
-  return cached?.payload ?? null;
+  return (cached?.payload as T | undefined) ?? null;
 }
 
 const BALANCE_KEYS = ['balance', 'total_balance', 'amount', 'remainingBalance', 'remaining_balance'] as const;
