@@ -135,7 +135,8 @@ export function render(data) {
     const segments = [];
     // Model + context bar (variant suffix lives here — it describes context capacity)
     const variant = data.modelVariant ? ` ${C.overlay}(${data.modelVariant})${RESET}` : '';
-    segments.push(`${C.overlay}[${RESET}${C.blue}${data.model}${RESET}${C.overlay}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
+    const effort = data.effortLevel ? ` ${C.overlay}(${data.effortLevel})${RESET}` : '';
+    segments.push(`${C.overlay}[${RESET}${C.blue}${data.model}${RESET}${effort}${C.overlay}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
     // Compact mode: model + context bar only
     if (compact) {
         return segments.join(` ${C.overlay}│${RESET} `);

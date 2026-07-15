@@ -17,6 +17,7 @@ export interface StdinData {
   } | null;
   transcript_path?: string;
   cwd?: string;
+  effort?: { level?: string };
 }
 
 export interface AgentEntry {
@@ -41,4 +42,6 @@ export interface RenderData {
   monthlyPercent: number | null;
   /** OpenCode / external: monthly quota reset timestamp (ms) or null */
   monthlyResetsAt: number | null;
+  /** Effort level (Ultracode, Max, xHigh, High, Medium, Low) or null if unavailable */
+  effortLevel: string | null;
 }

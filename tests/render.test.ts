@@ -17,6 +17,7 @@ function makeData(overrides: Partial<RenderData> = {}): RenderData {
     fiveHourResetsAt: null,
     sevenDayResetsAt: null,
     extra: null,
+    effortLevel: null,
     ...overrides,
   };
 }
@@ -48,6 +49,34 @@ describe('render', () => {
   it('omits variant parens when modelVariant is null', () => {
     const out = strip(render(makeData({ contextPercent: 5 })));
     assert.ok(!out.includes('(1M)'));
+  });
+
+  it('shows effort level alongside model name', () => {
+    const out = strip(render(makeData({ effortLevel: 'Max' })));
+    assert.match(out, /\[Opus \(Max\)\]/);
+  });
+
+  it('shows low effort level', () => {
+    const out = strip(render(makeData({ effortLevel: 'Low' })));
+    assert.match(out, /\[Opus \(Low\)\]/);
+  });
+
+  it('shows xhigh effort level', () => {
+    const out = strip(render(makeData({ effortLevel: 'xHigh' })));
+    assert.match(out, /\[Opus \(xHigh\)\]/);
+  });
+
+  it('shows ultracode effort level', () => {
+    const out = strip(render(makeData({ effortLevel: 'Ultracode' })));
+    assert.match(out, /\[Opus \(Ultracode\)\]/);
+  });
+
+  it('omits effort level when null', () => {
+    const out = strip(render(makeData({ effortLevel: null })));
+    assert.ok(!out.includes('(Max)'));
+    assert.ok(!out.includes('(xHigh)'));
+    assert.ok(!out.includes('(Ultracode)'));
+    assert.match(out, /\[Opus\]/);
   });
 
   it('shows rate limits when provided', () => {

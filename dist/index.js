@@ -68,6 +68,19 @@ async function main() {
         getBailianQuota(),
         getExtraSegment(),
     ]);
+    /** 映射 effort level 原始值 → 显示标签 */
+    const EFFORT_LABELS = {
+        low: 'Low',
+        medium: 'Medium',
+        high: 'High',
+        xhigh: 'xHigh',
+        max: 'Max',
+        ultracode: 'Ultracode',
+    };
+    const rawEffort = data.effort?.level;
+    const effortLevel = rawEffort
+        ? EFFORT_LABELS[rawEffort.toLowerCase()] ?? rawEffort.charAt(0).toUpperCase() + rawEffort.slice(1)
+        : null;
     const renderData = {
         model: modelName.name,
         modelVariant: modelName.variant,
@@ -85,6 +98,7 @@ async function main() {
         extra,
         monthlyPercent: ocQuota?.monthlyPercent ?? blQuota?.monthlyPercent ?? null,
         monthlyResetsAt: ocQuota?.monthlyResetsAt ?? blQuota?.monthlyResetsAt ?? null,
+        effortLevel,
     };
     console.log(render(renderData));
 }
