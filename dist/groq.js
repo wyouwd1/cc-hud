@@ -1,4 +1,4 @@
-import { readCached, writeCached, fetchWithTimeout, TTL } from './cache.js';
+import { withCache, fetchWithTimeout } from './cache.js';
 function isGroq() {
     const base = process.env.ANTHROPIC_BASE_URL;
     return !!base && base.includes('groq');
@@ -46,13 +46,5 @@ export async function getGroqUsage() {
     const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
     if (!apiKey)
         return null;
-    const cached = readCached('groq-usage');
-    if (cached && Date.now() - cached.ts < TTL)
-        return cached.usage;
-    const usage = await fetchUsage(apiKey);
-    if (usage) {
-        writeCached('groq-usage', { usage, ts: Date.now() });
-        return usage;
-    }
-    return cached?.usage ?? null;
+    return withCache('groq-usage', () => fetchUsage(apiKey));
 }

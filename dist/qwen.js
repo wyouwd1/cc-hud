@@ -1,4 +1,4 @@
-import { readCached, writeCached, fetchWithTimeout, extractBalance, TTL } from './cache.js';
+import { withCache, fetchWithTimeout, extractBalance } from './cache.js';
 function isQwen() {
     const base = process.env.ANTHROPIC_BASE_URL;
     return !!base && (base.includes('dashscope') || base.includes('qwen'));
@@ -9,21 +9,18 @@ export async function getQwenBalance() {
     const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
     if (!apiKey)
         return null;
-    const cached = readCached('qwen-balance');
-    if (cached && Date.now() - cached.ts < TTL)
-        return cached.balance;
-    try {
-        const resp = await fetchWithTimeout('https://dashscope.aliyuncs.com/api/v1/billing/query', {
-            headers: { Authorization: `Bearer ${apiKey}`, accept: 'application/json' },
-        });
-        if (resp.ok) {
-            const balance = extractBalance(await resp.json());
-            if (balance) {
-                writeCached('qwen-balance', { balance, ts: Date.now() });
-                return balance;
+    return withCache('qwen-balance', async () => {
+        try {
+            const resp = await fetchWithTimeout('https://dashscope.aliyuncs.com/api/v1/billing/query', {
+                headers: { Authorization: `Bearer ${apiKey}`, accept: 'application/json' },
+            });
+            if (resp.ok) {
+                const balance = extractBalance(await resp.json());
+                if (balance)
+                    return balance;
             }
         }
-    }
-    catch { }
-    return cached?.balance ?? null;
+        catch { }
+        return null;
+    });
 }

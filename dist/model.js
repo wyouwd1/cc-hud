@@ -1,6 +1,8 @@
 // Prefer `id` over `display_name`: only id carries the `[1m]` variant suffix
 // for extended-context mode (display_name surfaces it as free text "(1M context)").
 import { isLocalProxy } from './proxy.js';
+// — Shared helper — used inside tryParse
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 function tryParse(raw) {
     const cm = raw.match(/claude-(\w+)-(\d+)-(\d+)(?:-\d+)?(?:\[(\w+)\])?/);
     if (cm) {
@@ -18,14 +20,13 @@ function tryParse(raw) {
     const glm = raw.match(/^(glm|chatglm)[-_]([\w.]+(?:-\w+)?)(?:\[(\w+)\])?$/i);
     if (glm) {
         const prefix = glm[1].toLowerCase() === 'chatglm' ? 'ChatGLM' : 'GLM';
-        const model = glm[2].split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        const model = glm[2].split('-').map(capitalize).join(' ');
         return { name: `${prefix} ${model}`, variant: glm[3] ? glm[3].toUpperCase() : null };
     }
     const mm = raw.match(/^(MiniMax|abab)(?:-([\w][\w.-]*))?(?:\[(\w+)\])?$/);
     if (mm) {
         const family = mm[1] === 'abab' ? 'ABAB' : 'MiniMax';
         const sub = mm[2];
-        const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
         const name = sub ? `${family} ${sub.split('-').map(capitalize).join(' ')}` : family;
         return { name, variant: mm[3] ? mm[3].toUpperCase() : null };
     }

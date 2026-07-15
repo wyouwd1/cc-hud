@@ -1,7 +1,8 @@
-import { readCached, writeCached, fetchWithTimeout, TTL } from './cache.js';
+import { withCache, fetchWithTimeout } from './cache.js';
 import { isLocalProxy } from './proxy.js';
 
 const TIMEOUT_MS = 5000; // OpenCode workspace page is a full HTML render (~1-2s)
+const OPENCODE_URL = 'opencode.ai/go?ref=TN4ZD3A7YH';
 
 export interface OpenCodeQuota {
   rollingPercent: number;
@@ -30,7 +31,7 @@ export function needsGuidance(): boolean {
 /** 获取 extra 段引导文字 */
 export function getOpenCodeHint(): string | null {
   if (!needsGuidance()) return null;
-  return 'OC need auth → opencode.ai/go?ref=TN4ZD3A7YH';
+  return 'OC need auth → ' + OPENCODE_URL;
 }
 
 /** 获取独立指引行（多行纯文本，供 AI 读取） */
@@ -38,7 +39,7 @@ export function getOpenCodeGuidanceLine(): string | null {
   if (!needsGuidance()) return null;
   return [
     '[cc-hud] ⚠ OpenCode Go 本地代理已检测到，但未配置配额凭证。',
-    '  配置方式：访问 https://opencode.ai/go?ref=TN4ZD3A7YH ，',
+    '  配置方式：访问 https://' + OPENCODE_URL + ' ，',
     '  从浏览器开发者工具 Network 标签页复制 cURL 请求，',
     '  提取 cookie 中的 auth 值设置为 OPENCODE_AUTH。',
     '  设置 CC_HUD_SKIP_OC_HINT=1 可关闭此提示。',
@@ -123,14 +124,5 @@ async function fetchQuota(): Promise<OpenCodeQuota | null> {
 
 export async function getOpenCodeQuota(): Promise<OpenCodeQuota | null> {
   if (!isOpenCode()) return null;
-
-  const cached = readCached<{ payload: OpenCodeQuota; ts: number }>('oc-quota');
-  if (cached && Date.now() - cached.ts < TTL) return cached.payload;
-
-  const quota = await fetchQuota();
-  if (quota) {
-    writeCached('oc-quota', { payload: quota, ts: Date.now() });
-    return quota;
-  }
-  return cached?.payload ?? null;
+  return withCache('oc-quota', () => fetchQuota());
 }

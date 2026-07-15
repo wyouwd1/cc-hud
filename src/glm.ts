@@ -1,4 +1,4 @@
-import { readCached, writeCached, fetchWithTimeout, extractBalance, TTL } from './cache.js';
+import { withCache, fetchWithTimeout, extractBalance } from './cache.js';
 
 function isGlm(): boolean {
   const base = process.env.ANTHROPIC_BASE_URL;
@@ -15,25 +15,19 @@ export async function getGlmBalance(): Promise<string | null> {
   if (!isGlm()) return null;
   const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
   if (!apiKey) return null;
-
-  const cached = readCached<{ balance: string; ts: number }>('glm-balance');
-  if (cached && Date.now() - cached.ts < TTL) return cached.balance;
-
-  try {
-    const resp = await fetchWithTimeout(`${host()}/api/biz/account/query-customer-account-report`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (resp.ok) {
-      const data = (await resp.json()) as Record<string, unknown>;
-      if (!data.code || data.code === 200) {
-        const balance = extractBalance(data);
-        if (balance) {
-          writeCached('glm-balance', { balance, ts: Date.now() });
-          return balance;
+  return withCache('glm-balance', async () => {
+    try {
+      const resp = await fetchWithTimeout(`${host()}/api/biz/account/query-customer-account-report`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (resp.ok) {
+        const data = (await resp.json()) as Record<string, unknown>;
+        if (!data.code || data.code === 200) {
+          const balance = extractBalance(data);
+          if (balance) return balance;
         }
       }
-    }
-  } catch {}
-
-  return cached?.balance ?? null;
+    } catch {}
+    return null;
+  });
 }

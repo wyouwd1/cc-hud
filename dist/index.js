@@ -11,9 +11,18 @@ import { getQwenBalance } from './qwen.js';
 import { getMoonshotBalance } from './moonshot.js';
 import { getGroqUsage } from './groq.js';
 import { readFileSync } from 'node:fs';
+import { TIMEOUT_MS, EFFORT_LABELS } from './constants.js';
+import { toMs } from './timestamp.js';
 // Hard timeout — never block Claude Code
-const TIMEOUT_MS = 6000;
 setTimeout(() => process.exit(0), TIMEOUT_MS).unref();
+/** 优先级回退链：返回第一个非 null/undefined 的值 */
+function fallback(...sources) {
+    for (const s of sources) {
+        if (s != null)
+            return s;
+    }
+    return null;
+}
 function readExtraFile() {
     const file = process.env.CC_HUD_EXTRA_FILE;
     if (!file)
@@ -39,11 +48,6 @@ async function main() {
         ? Math.round(cw.used_percentage)
         : null;
     const agents = await agentsPromise;
-    const toMs = (ts) => {
-        if (ts == null)
-            return null;
-        return ts < 1e12 ? ts * 1000 : ts;
-    };
     const modelName = shortModelName(data.model?.display_name, data.model?.id);
     // OpenCode 引导提示（同步，不涉及网络 IO）
     const ocHint = getOpenCodeHint();
@@ -68,15 +72,6 @@ async function main() {
         getBailianQuota(),
         getExtraSegment(),
     ]);
-    /** 映射 effort level 原始值 → 显示标签 */
-    const EFFORT_LABELS = {
-        low: 'Low',
-        medium: 'Medium',
-        high: 'High',
-        xhigh: 'xHigh',
-        max: 'Max',
-        ultracode: 'Ultracode',
-    };
     const rawEffort = data.effort?.level;
     const effortLevel = rawEffort
         ? EFFORT_LABELS[rawEffort.toLowerCase()] ?? rawEffort.charAt(0).toUpperCase() + rawEffort.slice(1)
@@ -86,18 +81,13 @@ async function main() {
         modelVariant: modelName.variant,
         contextPercent,
         agents,
-        // Priority: built-in rate limits > OpenCode quota > MiniMax quota > Bailian quota
-        fiveHourPercent: data.rate_limits?.five_hour?.used_percentage
-            ?? ocQuota?.rollingPercent ?? mmQuota?.fiveHourUsedPct ?? blQuota?.rollingPercent ?? null,
-        sevenDayPercent: data.rate_limits?.seven_day?.used_percentage
-            ?? ocQuota?.weeklyPercent ?? mmQuota?.sevenDayUsedPct ?? blQuota?.weeklyPercent ?? null,
-        fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at)
-            ?? ocQuota?.rollingResetsAt ?? mmQuota?.fiveHourResetsAt ?? blQuota?.rollingResetsAt ?? null,
-        sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at)
-            ?? ocQuota?.weeklyResetsAt ?? mmQuota?.sevenDayResetsAt ?? blQuota?.weeklyResetsAt ?? null,
+        fiveHourPercent: fallback(data.rate_limits?.five_hour?.used_percentage, ocQuota?.rollingPercent, mmQuota?.fiveHourUsedPct, blQuota?.rollingPercent),
+        sevenDayPercent: fallback(data.rate_limits?.seven_day?.used_percentage, ocQuota?.weeklyPercent, mmQuota?.sevenDayUsedPct, blQuota?.weeklyPercent),
+        fiveHourResetsAt: fallback(toMs(data.rate_limits?.five_hour?.resets_at), ocQuota?.rollingResetsAt, mmQuota?.fiveHourResetsAt, blQuota?.rollingResetsAt),
+        sevenDayResetsAt: fallback(toMs(data.rate_limits?.seven_day?.resets_at), ocQuota?.weeklyResetsAt, mmQuota?.sevenDayResetsAt, blQuota?.weeklyResetsAt),
+        monthlyPercent: fallback(ocQuota?.monthlyPercent, blQuota?.monthlyPercent),
+        monthlyResetsAt: fallback(ocQuota?.monthlyResetsAt, blQuota?.monthlyResetsAt),
         extra,
-        monthlyPercent: ocQuota?.monthlyPercent ?? blQuota?.monthlyPercent ?? null,
-        monthlyResetsAt: ocQuota?.monthlyResetsAt ?? blQuota?.monthlyResetsAt ?? null,
         effortLevel,
     };
     console.log(render(renderData));

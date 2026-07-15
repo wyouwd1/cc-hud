@@ -1,4 +1,4 @@
-import { readCached, writeCached, fetchWithTimeout, extractBalance, TTL } from './cache.js';
+import { withCache, fetchWithTimeout, extractBalance } from './cache.js';
 function isGlm() {
     const base = process.env.ANTHROPIC_BASE_URL;
     return !!base && (base.includes('bigmodel.cn') || base.includes('api.z.ai'));
@@ -14,24 +14,21 @@ export async function getGlmBalance() {
     const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
     if (!apiKey)
         return null;
-    const cached = readCached('glm-balance');
-    if (cached && Date.now() - cached.ts < TTL)
-        return cached.balance;
-    try {
-        const resp = await fetchWithTimeout(`${host()}/api/biz/account/query-customer-account-report`, {
-            headers: { Authorization: `Bearer ${apiKey}` },
-        });
-        if (resp.ok) {
-            const data = (await resp.json());
-            if (!data.code || data.code === 200) {
-                const balance = extractBalance(data);
-                if (balance) {
-                    writeCached('glm-balance', { balance, ts: Date.now() });
-                    return balance;
+    return withCache('glm-balance', async () => {
+        try {
+            const resp = await fetchWithTimeout(`${host()}/api/biz/account/query-customer-account-report`, {
+                headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (resp.ok) {
+                const data = (await resp.json());
+                if (!data.code || data.code === 200) {
+                    const balance = extractBalance(data);
+                    if (balance)
+                        return balance;
                 }
             }
         }
-    }
-    catch { }
-    return cached?.balance ?? null;
+        catch { }
+        return null;
+    });
 }

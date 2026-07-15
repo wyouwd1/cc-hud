@@ -1,7 +1,8 @@
-import { describe, it, beforeEach, afterEach } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { render } from '../dist/render.js';
 import type { RenderData } from '../dist/types.js';
+import { withEnvSnapshot } from './helpers.ts';
 
 // Strip ANSI escape codes for content assertions
 const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
@@ -220,13 +221,8 @@ describe('render', () => {
   // ─── Compact mode ────────────────────────────────────────────
 
   describe('compact mode (CC_HUD_COMPACT=1)', () => {
-    const origCompact = process.env.CC_HUD_COMPACT;
-
+    withEnvSnapshot();
     beforeEach(() => { process.env.CC_HUD_COMPACT = '1'; });
-    afterEach(() => {
-      if (origCompact === undefined) delete process.env.CC_HUD_COMPACT;
-      else process.env.CC_HUD_COMPACT = origCompact;
-    });
 
     it('shows model and context bar', () => {
       const out = strip(render(makeData({ model: 'Opus', contextPercent: 33 })));

@@ -57,6 +57,10 @@ const C = loadTheme();
 const BAR_WIDTH = 10;
 const BLOCKS = [' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
 const TRACK_CHAR = '░';
+// — Formatting helpers —
+const SEP = ` ${C.overlay}│${RESET} `;
+const dim = (s) => `${C.overlay}${s}${RESET}`;
+const fmtTag = (v) => v ? ` ${dim(`(${v})`)}` : '';
 function color(percent) {
     if (percent <= 50)
         return C.green;
@@ -70,7 +74,7 @@ function progressBar(percent) {
     // null = current_usage not yet populated (start of session or just after /compact)
     // — render an empty track + dim em-dash so it doesn't look like context reset.
     if (percent === null) {
-        return `${C.surface}${TRACK_CHAR.repeat(BAR_WIDTH)}${RESET} ${C.overlay}—%${RESET}`;
+        return `${C.surface}${TRACK_CHAR.repeat(BAR_WIDTH)}${RESET} ${dim('—%')}`;
     }
     const clamped = Math.max(0, Math.min(100, percent));
     const total = (clamped / 100) * BAR_WIDTH;
@@ -118,14 +122,14 @@ function rateSegment(label, percent, resetsAt) {
     const clamped = Math.round(Math.max(0, Math.min(100, percent)));
     const c = color(clamped);
     const cd = formatCountdown(resetsAt);
-    const suffix = cd ? ` ${C.overlay}(${RESET}${cd.color}${cd.text}${RESET}${C.overlay})${RESET}` : '';
-    return `${C.overlay}${label}:${RESET}${c}${clamped}%${RESET}${suffix}`;
+    const suffix = cd ? ` ${dim('(')}${cd.color}${cd.text}${RESET}${dim(')')}` : '';
+    return `${dim(`${label}:`)}${c}${clamped}%${RESET}${suffix}`;
 }
 function agentSegment(agents) {
     if (agents.length === 0)
         return null;
     const parts = agents.slice(0, 3).map(a => {
-        const model = a.model ? ` ${C.overlay}[${a.model}]${RESET}` : '';
+        const model = a.model ? ` ${dim(`[${a.model}]`)}` : '';
         return `${C.teal}◐${RESET} ${C.text}${a.type}${RESET}${model}`;
     });
     return parts.join(' ');
@@ -134,12 +138,12 @@ export function render(data) {
     const compact = process.env.CC_HUD_COMPACT === '1';
     const segments = [];
     // Model + context bar (variant suffix lives here — it describes context capacity)
-    const variant = data.modelVariant ? ` ${C.overlay}(${data.modelVariant})${RESET}` : '';
-    const effort = data.effortLevel ? ` ${C.overlay}(${data.effortLevel})${RESET}` : '';
-    segments.push(`${C.overlay}[${RESET}${C.blue}${data.model}${RESET}${effort}${C.overlay}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
+    const variant = fmtTag(data.modelVariant);
+    const effort = fmtTag(data.effortLevel);
+    segments.push(`${dim('[')}${C.blue}${data.model}${RESET}${effort}${dim(']')} ${progressBar(data.contextPercent)}${variant}`);
     // Compact mode: model + context bar only
     if (compact) {
-        return segments.join(` ${C.overlay}│${RESET} `);
+        return segments.join(SEP);
     }
     // Agents (if any)
     const agentStr = agentSegment(data.agents);
@@ -151,11 +155,11 @@ export function render(data) {
     const rm = rateSegment('mo', data.monthlyPercent, data.monthlyResetsAt);
     const rateParts = [r5, r7, rm].filter((s) => s !== null);
     if (rateParts.length > 0) {
-        segments.push(rateParts.join(` ${C.overlay}│${RESET} `));
+        segments.push(rateParts.join(SEP));
     }
     // Extra (generic pluggable segment, e.g. balance for non-Anthropic backends)
     if (data.extra) {
         segments.push(`${C.teal}${data.extra}${RESET}`);
     }
-    return segments.join(` ${C.overlay}│${RESET} `);
+    return segments.join(SEP);
 }

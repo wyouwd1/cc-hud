@@ -1,4 +1,4 @@
-import { readCached, writeCached, fetchWithTimeout, TTL } from './cache.js';
+import { withCache, fetchWithTimeout } from './cache.js';
 
 const HOST_CN = 'https://api.minimaxi.com';
 const HOST_GLOBAL = 'https://api.minimax.io';
@@ -59,14 +59,5 @@ export async function getMmxQuota(): Promise<MmxQuota | null> {
   if (!isMmx()) return null;
   const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
   if (!apiKey) return null;
-
-  const cached = readCached<{ payload: MmxQuota; ts: number }>('mmx-quota');
-  if (cached && Date.now() - cached.ts < TTL) return cached.payload;
-
-  const quota = await fetchQuota(apiKey);
-  if (quota) {
-    writeCached('mmx-quota', { payload: quota, ts: Date.now() });
-    return quota;
-  }
-  return cached?.payload ?? null;
+  return withCache('mmx-quota', () => fetchQuota(apiKey));
 }

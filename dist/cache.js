@@ -27,6 +27,18 @@ export function fetchWithTimeout(url, init = {}, timeoutMs = 2000) {
     timer.unref();
     return fetch(url, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
+/** 带缓存的异步取数：读缓存 → 检查 TTL → fetch → 写缓存 → fallback */
+export async function withCache(key, fetchFn, ttl = TTL) {
+    const cached = readCached(key);
+    if (cached && Date.now() - cached.ts < ttl)
+        return cached.payload;
+    const fresh = await fetchFn();
+    if (fresh) {
+        writeCached(key, { payload: fresh, ts: Date.now() });
+        return fresh;
+    }
+    return cached?.payload ?? null;
+}
 const BALANCE_KEYS = ['balance', 'total_balance', 'amount', 'remainingBalance', 'remaining_balance'];
 export function extractBalance(data) {
     if (!data || typeof data !== 'object')

@@ -1,4 +1,4 @@
-import { readCached, writeCached, fetchWithTimeout, TTL } from './cache.js';
+import { withCache, fetchWithTimeout } from './cache.js';
 
 const API_HOST = 'https://bailian-cs.console.aliyun.com/data/api.json';
 
@@ -114,15 +114,5 @@ async function fetchQuota(): Promise<BailianQuota | null> {
 
 export async function getBailianQuota(): Promise<BailianQuota | null> {
   if (!isBailian()) return null;
-
-  const cached = readCached<{ payload: BailianQuota; ts: number }>('bailian-quota');
-  if (cached && Date.now() - cached.ts < TTL) return cached.payload;
-
-  const quota = await fetchQuota();
-  if (quota) {
-    writeCached('bailian-quota', { payload: quota, ts: Date.now() });
-    return quota;
-  }
-
-  return cached?.payload ?? null;
+  return withCache('bailian-quota', () => fetchQuota());
 }
