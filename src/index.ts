@@ -11,6 +11,8 @@ import { getQwenBalance } from './qwen.js';
 import { getMoonshotBalance } from './moonshot.js';
 import { getGroqUsage } from './groq.js';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { TIMEOUT_MS, EFFORT_LABELS } from './constants.js';
 import { toMs } from './timestamp.js';
 import type { RenderData } from './types.js';
@@ -35,6 +37,19 @@ function readExtraFile(): string | null {
   } catch {
     return null;
   }
+}
+
+/** 从 ~/.claude/settings.json 读取实时 effortLevel（用户通过 /model 设置的最新值） */
+function readSettingsEffortLevel(): string | null {
+  try {
+    const settingsPath = join(homedir(), '.claude', 'settings.json');
+    const text = readFileSync(settingsPath, 'utf8');
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.effortLevel === 'string' && parsed.effortLevel.trim()) {
+      return parsed.effortLevel.trim();
+    }
+  } catch {}
+  return null;
 }
 
 async function main(): Promise<void> {
@@ -83,7 +98,10 @@ async function main(): Promise<void> {
     getExtraSegment(),
   ]);
 
-  const rawEffort = data.effort?.level;
+  // Effort level: settings.json 的 effortLevel 是用户通过 /model 设置的实时值；
+  // stdin 的 effort.level 来自环境变量 CLAUDE_CODE_EFFORT_LEVEL（会话启动后不变）。
+  // 优先使用 settings.json 的实时值。
+  const rawEffort = readSettingsEffortLevel() ?? data.effort?.level;
   const effortLevel: string | null = rawEffort
     ? EFFORT_LABELS[rawEffort.toLowerCase()] ?? rawEffort.charAt(0).toUpperCase() + rawEffort.slice(1)
     : null;

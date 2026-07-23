@@ -52,29 +52,29 @@ function loadTheme() {
     const name = (process.env.CC_HUD_THEME ?? 'catppuccin').toLowerCase();
     return THEMES[name] ?? THEMES.catppuccin;
 }
-const C = loadTheme();
+function C() { return loadTheme(); }
 // — Bar config —
 const BAR_WIDTH = 10;
 const BLOCKS = [' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
 const TRACK_CHAR = '░';
 // — Formatting helpers —
-const SEP = ` ${C.overlay}│${RESET} `;
-const dim = (s) => `${C.overlay}${s}${RESET}`;
+const SEP = () => ` ${C().overlay}│${RESET} `;
+const dim = (s) => `${C().overlay}${s}${RESET}`;
 const fmtTag = (v) => v ? ` ${dim(`(${v})`)}` : '';
 function color(percent) {
     if (percent <= 50)
-        return C.green;
+        return C().green;
     if (percent <= 70)
-        return C.yellow;
+        return C().yellow;
     if (percent <= 85)
-        return C.peach;
-    return C.red;
+        return C().peach;
+    return C().red;
 }
 function progressBar(percent) {
     // null = current_usage not yet populated (start of session or just after /compact)
     // — render an empty track + dim em-dash so it doesn't look like context reset.
     if (percent === null) {
-        return `${C.surface}${TRACK_CHAR.repeat(BAR_WIDTH)}${RESET} ${dim('—%')}`;
+        return `${C().surface}${TRACK_CHAR.repeat(BAR_WIDTH)}${RESET} ${dim('—%')}`;
     }
     const clamped = Math.max(0, Math.min(100, percent));
     const total = (clamped / 100) * BAR_WIDTH;
@@ -84,7 +84,7 @@ function progressBar(percent) {
     const c = color(clamped);
     const bar = c + '█'.repeat(full) +
         (frac > 0 ? BLOCKS[frac] : '') +
-        RESET + C.surface +
+        RESET + C().surface +
         TRACK_CHAR.repeat(Math.max(0, empty)) +
         RESET;
     return `${bar} ${c}${clamped}%${RESET}`;
@@ -92,12 +92,12 @@ function progressBar(percent) {
 function countdownColor(ms) {
     const hours = ms / 3_600_000;
     if (hours >= 24)
-        return C.sapphire;
+        return C().sapphire;
     if (hours >= 3)
-        return C.lavender;
+        return C().lavender;
     if (hours >= 0.5)
-        return C.flamingo;
-    return C.maroon;
+        return C().flamingo;
+    return C().maroon;
 }
 function formatCountdown(resetsAt) {
     if (resetsAt == null)
@@ -130,7 +130,7 @@ function agentSegment(agents) {
         return null;
     const parts = agents.slice(0, 3).map(a => {
         const model = a.model ? ` ${dim(`[${a.model}]`)}` : '';
-        return `${C.teal}◐${RESET} ${C.text}${a.type}${RESET}${model}`;
+        return `${C().teal}◐${RESET} ${C().text}${a.type}${RESET}${model}`;
     });
     return parts.join(' ');
 }
@@ -140,10 +140,10 @@ export function render(data) {
     // Model + context bar (variant suffix lives here — it describes context capacity)
     const variant = fmtTag(data.modelVariant);
     const effort = fmtTag(data.effortLevel);
-    segments.push(`${dim('[')}${C.blue}${data.model}${RESET}${effort}${dim(']')} ${progressBar(data.contextPercent)}${variant}`);
+    segments.push(`${dim('[')}${C().blue}${data.model}${RESET}${effort}${dim(']')} ${progressBar(data.contextPercent)}${variant}`);
     // Compact mode: model + context bar only
     if (compact) {
-        return segments.join(SEP);
+        return segments.join(SEP());
     }
     // Agents (if any)
     const agentStr = agentSegment(data.agents);
@@ -155,11 +155,11 @@ export function render(data) {
     const rm = rateSegment('mo', data.monthlyPercent, data.monthlyResetsAt);
     const rateParts = [r5, r7, rm].filter((s) => s !== null);
     if (rateParts.length > 0) {
-        segments.push(rateParts.join(SEP));
+        segments.push(rateParts.join(SEP()));
     }
     // Extra (generic pluggable segment, e.g. balance for non-Anthropic backends)
     if (data.extra) {
-        segments.push(`${C.teal}${data.extra}${RESET}`);
+        segments.push(`${C().teal}${data.extra}${RESET}`);
     }
-    return segments.join(SEP);
+    return segments.join(SEP());
 }

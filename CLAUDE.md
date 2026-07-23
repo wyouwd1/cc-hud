@@ -29,6 +29,14 @@ src/
   balance.ts / glm.ts / mmx.ts  — DeepSeek / GLM / MiniMax 余额或配额采集
   bailian.ts                 — 百炼 Coding Plan 配额采集（详见 README 自动检测的后端）
   types.ts                  — 类型定义
+opencode-plugin/
+  index.ts                  — OpenCode 插件入口：事件 → 采集 → 渲染 → 写文件
+  adapter.ts                — 数据源整合 → RenderData
+  session.ts                — 事件驱动的会话数据采集器
+  quota.ts                  — OpenCode Go 订阅配额采集（HTML scraping）
+  config.ts                 — opencode.json cc-hud 配置节读取
+  status-writer.ts          — 原子写入 ~/.cc-hud-status
+  sqlite.ts                 — SQLite 兜底读取（可选）
 scripts/launcher.cjs        — 稳定路径 launcher（setup 复制到 ~/.claude/bin/cc-hud-launcher.cjs）
 dist/                       — 编译输出（提交到仓库）
 tests/*.test.ts(.cjs)       — node:test 单元测试（render / model / mmx / glm / launcher）
