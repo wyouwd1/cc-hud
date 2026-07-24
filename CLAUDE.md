@@ -64,6 +64,25 @@ Claude Code → stdin JSON → cc-hud → stdout → 状态栏
   - 原生安装器的 `claude.exe` 内嵌 Bun 运行时，会触发 `pas panic: deallocation did fail` 崩溃
   - npm 版使用系统 Node.js，稳定无此问题
 
+## 已知问题：effort 级别显示
+
+cc-hud 通过 `~/.claude/settings.json` 的 `effortLevel` 字段读取用户通过 `/model` 设置的实时 effort 级别。
+
+**如果 settings.json 中设置了 `CLAUDE_CODE_EFFORT_LEVEL` 环境变量**，Claude Code 会在发给 cc-hud 的 stdin JSON 中始终使用该值，
+导致 cc-hud 无法正确反映 `/model` 切换后的 effort 级别。
+
+**修复方法**：从 `~/.claude/settings.json` 的 `env` 节中删除 `CLAUDE_CODE_EFFORT_LEVEL` 字段，让 Claude Code 使用会话实时 effort 值。
+
+```diff
+ {
+   "env": {
+-    "CLAUDE_CODE_EFFORT_LEVEL": "max",
+   }
+ }
+```
+
+删除后 cc-hud 能正确显示所有 effort 级别：`(Low)`、`(Medium)`、`(High)`、`(xHigh)`、`(Max)`。切换默认值也能正确更新。
+
 ## 语言约定
 
 继承全局规则 `~/.claude/rules/common/language.md`：
