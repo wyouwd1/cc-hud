@@ -1,6 +1,6 @@
 {
   "name": "@wyouwd1/cc-hud",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Compact statusline HUD for Claude Code / OpenCode — context, agents, rate limits",
   "type": "module",
   "main": "plugin-entry.ts",

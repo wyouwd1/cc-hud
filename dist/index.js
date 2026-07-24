@@ -87,9 +87,8 @@ async function main() {
         getBailianQuota(),
         getExtraSegment(),
     ]);
-    // Effort level: settings.json 的 effortLevel 是用户通过 /model 设置的实时值；
-    // stdin 的 effort.level 来自环境变量 CLAUDE_CODE_EFFORT_LEVEL（会话启动后不变）。
-    // 优先使用 settings.json 的实时值。
+    // Effort level: settings.json 的 effortLevel 是用户 /model 写入的实时值。
+    // 回退到 stdin 提供的环境变量值（会话启动后固定，切回默认值时可能比 settings 准确）。
     const rawEffort = readSettingsEffortLevel() ?? data.effort?.level;
     const effortLevel = rawEffort
         ? EFFORT_LABELS[rawEffort.toLowerCase()] ?? rawEffort.charAt(0).toUpperCase() + rawEffort.slice(1)
