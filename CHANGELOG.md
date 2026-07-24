@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.3] — 2026-07-24
+
+### Fixed
+- Publish workflow: 添加 `contents: write` 权限，修复 GitHub Release 自动创建失败
+
 ## [0.7.2] — 2026-07-24
 
 ### Fixed
@@ -171,6 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Model name beautification
 - Tail read + pre-filter + timeout for performance
 
+[0.7.3]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.7.3
 [0.7.2]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.7.2
 [0.7.1]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.7.1
 [0.7.0]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.7.0
