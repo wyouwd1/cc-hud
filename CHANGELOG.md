@@ -7,16 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-07-24
+
+### Fixed
+- Effort 等级不会随 `/model` 切换更新
+
+### Docs
+- 记录 `CLAUDE_CODE_EFFORT_LEVEL` 环境变量导致 effort 显示不准的已知问题
+
+## [0.7.1] — 2026-07-18
+
 ### Added
-- Qwen (DashScope) balance backend with full test coverage
-- Custom color themes: `CC_HUD_THEME` (catppuccin / dracula / nord)
-- Compact mode: `CC_HUD_COMPACT=1` (model + context bar only)
-- CI/CD pipeline: GitHub Actions (ci.yml + publish.yml)
-- npm coverage script (`npm run coverage`)
+- 从 stdin 读取 effort 等级并显示在模型名旁
+
+### Fixed
+- `withCache` 兼容旧缓存格式 `{balance,ts}` → `{payload,ts}` 迁移
 
 ### Changed
-- Color system refactored into pluggable theme architecture
-- Published as `@wyouwd1/cc-hud` (scoped npm package)
+- 全库代码简化 — 提取公用函数、消除重复模式
+
+## [0.7.0] — 2026-07-12
+
+### Added
+- OpenCode Go 自动检测与配置引导提示
+- 本地代理检测 (`proxy.ts`) — 自动判断本地 vs 远程代理
+
+### Changed
+- 抽取 `isLocalProxy()` 到独立模块，对齐 localhost 行为规范
 
 ## [0.6.1] — 2026-07-03
 
@@ -154,6 +171,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Model name beautification
 - Tail read + pre-filter + timeout for performance
 
+[0.7.2]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.7.2
+[0.7.1]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.7.1
+[0.7.0]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.7.0
 [0.6.1]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.6.1
 [0.6.0]: https://github.com/wyouwd1/cc-hud/releases/tag/v0.6.0
 [0.5.1]: https://github.com/WaterTian/cc-hud/releases/tag/v0.5.1
